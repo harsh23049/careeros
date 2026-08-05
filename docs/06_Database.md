@@ -1,206 +1,364 @@
-# CareerOS Database Design
+# Database Design
 
 ## Overview
 
 CareerOS uses MongoDB as its primary database.
 
-The database stores user information, resumes, job descriptions, AI-generated documents, and application history.
+The database is designed around six core entities:
+
+- Users
+- Resumes
+- Jobs
+- Applications
+- Generated Documents
+- AI History
+
+The backend follows a reference-based design using MongoDB ObjectIds to minimize data duplication and improve maintainability.
 
 ---
 
-# Collections
+# Collection 1 : Users
 
-## 1. Users
+## Purpose
 
-Stores user profile information.
-
-Fields
-
-- _id
-- fullName
-- email
-- phone
-- password (Future)
-- profileImage
-- createdAt
-- updatedAt
+Stores user profile information and authentication details.
 
 ---
 
-## 2. Resumes
+### Fields
 
-Stores multiple resumes uploaded by users.
-
-Fields
-
-- _id
-- userId
-- title
-- category
-- skills
-- fileUrl
-- fileType
-- version
-- createdAt
-- updatedAt
-
-Example
-
-Backend Resume
-
-AI Resume
-
-Full Stack Resume
+| Field | Type | Description |
+|---------|------|-------------|
+| _id | ObjectId | Unique User ID |
+| fullName | String | User's Full Name |
+| email | String | Unique Email Address |
+| password | String | Hashed Password |
+| phone | String | Contact Number |
+| profileImage | String | Cloudinary Image URL |
+| refreshToken | String | Active Refresh Token |
+| createdAt | Date | Creation Timestamp |
+| updatedAt | Date | Last Updated Timestamp |
 
 ---
 
-## 3. Jobs
+## Notes
 
-Stores saved job descriptions.
-
-Fields
-
-- _id
-- userId
-- company
-- jobTitle
-- location
-- jobType
-- experience
-- salary
-- jobDescription
-- requiredSkills
-- sourceWebsite
-- jobUrl
-- createdAt
+- Password will always be hashed using bcrypt.
+- Only Refresh Token is stored.
+- Access Tokens are never stored in MongoDB.
+- Email must be unique.
 
 ---
 
-## 4. Applications
+# Collection 2 : Resumes
 
-Tracks every application.
+## Purpose
 
-Fields
+Stores multiple resumes uploaded by a user.
 
-- _id
-- userId
-- jobId
-- resumeId
-- status
-- appliedDate
-- notes
+---
 
-Status
+### Fields
+
+| Field | Type | Description |
+|---------|------|-------------|
+| _id | ObjectId | Resume ID |
+| userId | ObjectId | Reference to User |
+| title | String | Resume Title |
+| category | String | Backend / AI / Full Stack |
+| skills | Array<String> | Resume Skills |
+| fileUrl | String | Cloudinary File URL |
+| fileType | String | PDF / DOCX |
+| version | Number | Resume Version |
+| isDefault | Boolean | Default Resume |
+| createdAt | Date | Upload Time |
+| updatedAt | Date | Last Updated |
+
+---
+
+## Example Categories
+
+- Backend
+- AI/ML
+- Full Stack
+- Java
+- Python
+
+---
+
+# Collection 3 : Jobs
+
+## Purpose
+
+Stores every saved Job Description.
+
+---
+
+### Fields
+
+| Field | Type | Description |
+|---------|------|-------------|
+| _id | ObjectId | Job ID |
+| userId | ObjectId | Reference to User |
+| company | String | Company Name |
+| jobTitle | String | Job Title |
+| location | String | Job Location |
+| experience | String | Required Experience |
+| employmentType | String | Internship / Full-Time |
+| salary | String | Salary (Optional) |
+| sourceWebsite | String | LinkedIn / Greenhouse / etc |
+| jobUrl | String | Original Job Link |
+| jobDescription | String | Complete JD |
+| requiredSkills | Array<String> | Extracted Skills |
+| createdAt | Date | Saved Time |
+| updatedAt | Date | Last Updated |
+
+---
+
+# Collection 4 : Applications
+
+## Purpose
+
+Tracks every job application.
+
+---
+
+### Fields
+
+| Field | Type | Description |
+|---------|------|-------------|
+| _id | ObjectId | Application ID |
+| userId | ObjectId | Reference to User |
+| jobId | ObjectId | Reference to Job |
+| resumeId | ObjectId | Resume Used |
+| generatedDocumentIds | Array<ObjectId> | AI Generated Documents |
+| status | String | Application Status |
+| appliedAt | Date | Apply Date |
+| notes | String | Personal Notes |
+| createdAt | Date | Creation Timestamp |
+| updatedAt | Date | Last Updated |
+
+---
+
+## Status Values
 
 - Saved
 - Applied
+- Online Assessment
 - Interview
-- OA
 - Rejected
 - Offer
+- Accepted
 
 ---
 
-## 5. GeneratedDocuments
+# Collection 5 : GeneratedDocuments
 
-Stores AI-generated content.
+## Purpose
 
-Fields
+Stores all AI-generated content.
 
-- _id
-- userId
-- jobId
-- type
-- content
-- createdAt
+---
 
-Types
+### Fields
 
+| Field | Type | Description |
+|---------|------|-------------|
+| _id | ObjectId | Document ID |
+| userId | ObjectId | Reference to User |
+| jobId | ObjectId | Reference to Job |
+| applicationId | ObjectId | Reference to Application |
+| type | String | Document Type |
+| content | String | Generated Text |
+| createdAt | Date | Generation Time |
+
+---
+
+## Supported Types
+
+- Cover Letter
+- Recruiter Email
+- HR Answers
+- Resume Summary
+- Resume Recommendation
+
+---
+
+# Collection 6 : AIHistory
+
+## Purpose
+
+Stores metadata about every AI interaction.
+
+This collection helps with:
+
+- Debugging failed AI requests
+- Tracking AI usage
+- Monitoring token consumption
+- Measuring response time
+- Supporting future analytics
+- Auditing AI-generated content
+
+---
+
+### Fields
+
+| Field | Type | Description |
+|---------|------|-------------|
+| _id | ObjectId | History ID |
+| userId | ObjectId | Reference to User |
+| jobId | ObjectId | Related Job (Optional) |
+| applicationId | ObjectId | Related Application (Optional) |
+| feature | String | AI feature used |
+| model | String | AI model name (Gemini, GPT, Claude, etc.) |
+| prompt | String | Prompt sent to the model |
+| response | String | Generated response |
+| promptTokens | Number | Prompt token count |
+| completionTokens | Number | Generated token count |
+| totalTokens | Number | Total tokens consumed |
+| responseTime | Number | Response time (milliseconds) |
+| status | String | Success / Failed |
+| errorMessage | String | Error details (if failed) |
+| createdAt | Date | Request timestamp |
+
+---
+
+## Example Feature Values
+
+- JD Analysis
+- Resume Recommendation
 - Cover Letter
 - Cold Email
 - HR Answers
+- Resume Summary
 
 ---
 
-## 6. AIHistory
+## Example Status Values
 
-Stores AI requests.
-
-Fields
-
-- _id
-- userId
-- prompt
-- response
-- createdAt
-
-Purpose
-
-- Debugging
-- Analytics
-- Future Improvements
+- Success
+- Failed
+- Timeout
 
 ---
 
-## Relationships
+## Example Document
 
-User
+{
+    "_id": "6891...",
+    "userId": "688f...",
+    "jobId": "6890...",
+    "applicationId": "6892...",
+    "feature": "Cover Letter",
+    "model": "gemini-2.5-pro",
+    "prompt": "Generate a cover letter...",
+    "response": "Dear Hiring Manager...",
+    "promptTokens": 432,
+    "completionTokens": 287,
+    "totalTokens": 719,
+    "responseTime": 1840,
+    "status": "Success",
+    "errorMessage": null,
+    "createdAt": "2026-08-05T12:30:00Z"
+}
+# Relationships
 
-↓
+User (1)
 
-Multiple Resumes
+├── (N) Resumes
 
-↓
+├── (N) Jobs
 
-Multiple Jobs
+├── (N) Applications
 
-↓
+├── (N) GeneratedDocuments
 
-Multiple Applications
+└── (N) AIHistory
 
-↓
+Application
 
-Multiple AI Documents
+├── (1) Job
+
+├── (1) Resume
+
+└── (N) GeneratedDocuments
 
 ---
 
-# ER Diagram
+# File Storage
 
-User
+MongoDB stores only metadata.
 
-│
+Actual files are stored in Cloudinary.
 
-├─────────────── Resume
+Stored Files
 
-│
+- Resume PDFs
+- Profile Images
 
-├─────────────── Job
+---
 
-│                    │
+# Authentication
 
-│                    ▼
+CareerOS uses JWT Authentication.
 
-│              Application
+Login Flow
 
-│
+User Login
 
-└─────────────── Generated Document
+↓
+
+Generate Access Token
+
+↓
+
+Generate Refresh Token
+
+↓
+
+Store Refresh Token in MongoDB
+
+↓
+
+Send Tokens to Client
+
+---
+
+## Token Storage
+
+Access Token
+
+- Short-lived
+- Stored in HttpOnly Cookie
+- Never stored in Database
+
+Refresh Token
+
+- Long-lived
+- Stored in MongoDB
+- Stored in HttpOnly Cookie
+
+---
+
+# Database Design Principles
+
+- Use ObjectId references between collections.
+- Avoid duplicate data.
+- Store only file URLs in MongoDB.
+- Keep collections independent.
+- Design for scalability and future AI modules.
+- Use timestamps for all collections.
 
 ---
 
 # Future Collections
 
+Future versions of CareerOS may include:
+
 - Notifications
-- Interview Preparation
+- Interview Sessions
 - Calendar Events
+- Job Recommendations
 - Referral Tracking
-- ATS Reports
-
----
-
-# Design Principles
-
-- Keep collections independent.
-- Avoid duplicate data.
-- Reference documents using ObjectIds.
-- Store files in Cloudinary and only save URLs in MongoDB.
+- User Preferences
+- Activity Logs
