@@ -5,6 +5,8 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import healthRoutes from "./routes/health.routes.js";
 
+
+
 const app = express();
 
 /*
@@ -53,7 +55,9 @@ app.use("/api/v1/health", healthRoutes);
 | Global Error Handler
 |--------------------------------------------------------------------------
 */
-
+app.get("/api/v1/error", (req, res) => {
+    throw new ApiError(404, "Testing Global Error Handler");
+});
 // We'll add this later
 
 export default app;
