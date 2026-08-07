@@ -1,21 +1,30 @@
-const mongoose = require('mongoose');
-const app = require('./app');
-const { MONGO_URI, PORT } = require('./config/env');
+import dotenv from "dotenv";
 
-const port = PORT || 4000;
+dotenv.config();
 
-async function startServer() {
-  try {
-    await mongoose.connect(MONGO_URI);
+import app from "./app.js";
+import connectDB from "./config/db.js";
 
-    console.log('Connected to MongoDB');
-    app.listen(port, () => {
-      console.log(`Server listening on port ${port}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server', error);
-    process.exit(1);
-  }
-}
+const PORT = process.env.PORT || 8000;
+
+const startServer = async () => {
+    try {
+        // Connect Database
+        await connectDB();
+
+        // Start Express Server
+        app.listen(PORT, () => {
+            console.log("=================================");
+            console.log("🚀 CareerOS Backend Started");
+            console.log(`🌐 Server : http://localhost:${PORT}`);
+            console.log(`📦 Environment : ${process.env.NODE_ENV || "development"}`);
+            console.log("=================================");
+        });
+    } catch (error) {
+        console.error("Failed to start server.");
+        console.error(error.message);
+        process.exit(1);
+    }
+};
 
 startServer();

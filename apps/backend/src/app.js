@@ -1,24 +1,59 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cookieParser = require('cookie-parser');
-const routes = require('./routes');
-const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import cookieParser from "cookie-parser";
+import healthRoutes from "./routes/health.routes.js";
 
 const app = express();
 
+/*
+|--------------------------------------------------------------------------
+| Middlewares
+|--------------------------------------------------------------------------
+*/
+
+// Security Middleware
 app.use(helmet());
-app.use(cors());
+
+// Enable CORS
+app.use(
+    cors({
+        origin: process.env.CORS_ORIGIN || "*",
+        credentials: true,
+    })
+);
+
+// Logging
+app.use(morgan("dev"));
+
+// Parse JSON Body
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Parse URL Encoded Data
+app.use(
+    express.urlencoded({
+        extended: true,
+    })
+);
+
+// Parse Cookies
 app.use(cookieParser());
-app.use(morgan('dev'));
 
-app.use('/api', routes);
+/*
+|--------------------------------------------------------------------------
+| Routes
+|--------------------------------------------------------------------------
+*/
 
-app.use(notFoundHandler);
-app.use(errorHandler);
+// Health Check Route
+app.use("/api/v1/health", healthRoutes);
+/*
+|--------------------------------------------------------------------------
+| Global Error Handler
+|--------------------------------------------------------------------------
+*/
 
-module.exports = app;
+// We'll add this later
+
+export default app;
