@@ -1,9 +1,9 @@
 import userRepository from "../repositories/user.repository.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import User from "../models/user.model.js";
-// ==================== AUTHENTICATION ====================
 
+
+// ==================== AUTHENTICATION ====================
 const registerUser = async ({
     fullName,
     username,
