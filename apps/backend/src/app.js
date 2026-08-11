@@ -3,23 +3,25 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import healthRoutes from "./routes/health.routes.js";
-import ApiError from "./utils/ApiError.js";
 
+import healthRoutes from "./routes/health.routes.js";
+import userRoutes from "./routes/user.routes.js";
+
+import ApiError from "./utils/ApiError.js";
+import errorHandler from "./middlewares/error.middleware.js";
 
 
 const app = express();
 
-/*
-|--------------------------------------------------------------------------
-| Middlewares
-|--------------------------------------------------------------------------
-*/
 
-// Security Middleware
+// =====================================================
+// MIDDLEWARES
+// =====================================================
+
+// Security
 app.use(helmet());
 
-// Enable CORS
+// CORS
 app.use(
     cors({
         origin: process.env.CORS_ORIGIN || "*",
@@ -30,39 +32,49 @@ app.use(
 // Logging
 app.use(morgan("dev"));
 
-// Parse JSON Body
+// Parse JSON
 app.use(express.json());
 
-// Parse URL Encoded Data
+// Parse URL-encoded data
 app.use(
     express.urlencoded({
         extended: true,
     })
 );
 
-// Parse Cookies
+// Parse cookies
 app.use(cookieParser());
 
-/*
-|--------------------------------------------------------------------------
-| Routes
-|--------------------------------------------------------------------------
-*/
 
-// Health Check Route
+// =====================================================
+// ROUTES
+// =====================================================
+
+// User routes
+app.use("/api/v1/users", userRoutes);
+
+// Health check
 app.use("/api/v1/health", healthRoutes);
-/*
-|--------------------------------------------------------------------------
-| Global Error Handler
-|--------------------------------------------------------------------------
-*/
-// app.get("/api/v1/error", (req, res) => {
-//     throw new ApiError(404, "Testing Global Error Handler");
-// });
+
+
+// =====================================================
+// TEST ERROR ROUTE
+// =====================================================
+
 app.get("/api/v1/test-error", (req, res) => {
-    throw new ApiError(404, "This is a test error");
+    throw new ApiError(
+        404,
+        "This is a test error"
+    );
 });
 
-// We'll add this later
+
+// =====================================================
+// GLOBAL ERROR HANDLER
+// MUST BE THE LAST MIDDLEWARE
+// =====================================================
+
+app.use(errorHandler);
+
 
 export default app;
