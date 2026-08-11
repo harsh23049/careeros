@@ -2,6 +2,10 @@ import ApiError from "../utils/ApiError.js";
 
 const errorHandler = (err, req, res, next) => {
 
+    console.error("========== ERROR ==========");
+    console.error(err);
+    console.error(err.stack);
+    console.error("==========================");
     // If the error isn't an ApiError, create one
     if (!(err instanceof ApiError)) {
         err = new ApiError(

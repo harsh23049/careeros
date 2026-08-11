@@ -3,25 +3,23 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-
 import healthRoutes from "./routes/health.routes.js";
-import userRoutes from "./routes/user.routes.js";
-
 import ApiError from "./utils/ApiError.js";
-import errorHandler from "./middlewares/error.middleware.js";
+
 
 
 const app = express();
 
+/*
+|--------------------------------------------------------------------------
+| Middlewares
+|--------------------------------------------------------------------------
+*/
 
-// =====================================================
-// MIDDLEWARES
-// =====================================================
-
-// Security
+// Security Middleware
 app.use(helmet());
 
-// CORS
+// Enable CORS
 app.use(
     cors({
         origin: process.env.CORS_ORIGIN || "*",
@@ -32,49 +30,47 @@ app.use(
 // Logging
 app.use(morgan("dev"));
 
-// Parse JSON
+// Parse JSON Body
 app.use(express.json());
 
-// Parse URL-encoded data
+// Parse URL Encoded Data
 app.use(
     express.urlencoded({
         extended: true,
     })
 );
 
-// Parse cookies
+// Parse Cookies
 app.use(cookieParser());
 
+/*
+|--------------------------------------------------------------------------
+| Routes
+|--------------------------------------------------------------------------
+*/
 
-// =====================================================
-// ROUTES
-// =====================================================
+import userRoutes from "./routes/user.routes.js";
 
-// User routes
 app.use("/api/v1/users", userRoutes);
 
-// Health check
+// Health Check Route
 app.use("/api/v1/health", healthRoutes);
-
-
-// =====================================================
-// TEST ERROR ROUTE
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| Global Error Handler
+|--------------------------------------------------------------------------
+*/
+// app.get("/api/v1/error", (req, res) => {
+//     throw new ApiError(404, "Testing Global Error Handler");
+// });
+import errorHandler from "./middlewares/error.middleware.js";
 
 app.get("/api/v1/test-error", (req, res) => {
-    throw new ApiError(
-        404,
-        "This is a test error"
-    );
+    throw new ApiError(404, "This is a test error");
 });
-
-
-// =====================================================
-// GLOBAL ERROR HANDLER
-// MUST BE THE LAST MIDDLEWARE
-// =====================================================
 
 app.use(errorHandler);
 
+// We'll add this later
 
 export default app;

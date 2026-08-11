@@ -288,35 +288,33 @@ const changePassword = async (
 // AVATAR
 // =====================================================
 
-const updateAvatar = async (
-    userId,
-    avatarUrl,
-    publicId
-) => {
+const updateAvatar = async (userId, file) => {
 
-    const user =
-        await userRepository.findById(userId);
-
-    if (!user) {
-        throw new ApiError(
-            404,
-            "User not found"
-        );
+    if (!file) {
+        throw new ApiError(400, "Avatar image is required");
     }
 
+    const user = await userRepository.findById(userId);
 
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    // Upload new avatar to Cloudinary
+    const { url, publicId } =
+        await uploadToCloudinary(file.buffer);
+
+    // Update user's avatar
     user.avatar = {
-        url: avatarUrl,
+        url,
         publicId,
     };
-
 
     const updatedUser =
         await userRepository.save(user);
 
     return sanitizeUser(updatedUser);
 };
-
 
 // =====================================================
 // ACCOUNT
