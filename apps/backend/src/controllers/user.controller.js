@@ -18,4 +18,20 @@ const registerUser = asyncHandler(async (req, res) => {
         );
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+
+    const user = await userService.loginUser(email, password);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "User logged in successfully"
+            )
+        );
+});
+
+export { registerUser, loginUser };
