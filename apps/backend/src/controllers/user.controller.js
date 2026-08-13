@@ -64,6 +64,23 @@ const me = asyncHandler(async (req, res) => {
         );
 });
 
-export { registerUser, loginUser, logOutUser, me };
+const updateUserInfo = asyncHandler(async (req, res) => {
+    const user = await userService.updateProfile(
+        req.user._id,
+        req.body
+    );
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "User profile updated successfully"
+            )
+        );
+});
+
+export { registerUser, loginUser, logOutUser, me, updateUserInfo };
 
 

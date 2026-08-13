@@ -21,9 +21,17 @@ class userRepository {
     async updateRefreshToken(userId, refreshToken) {
         return await User.findByIdAndUpdate(
             userId,
-            { refreshToken },
+            { refreshToken }, 
             { new: true }
         );
+    }
+
+    // const save = async (user) => {
+    //     return await user.save()
+    // }
+
+    async save(user){
+        return await user.save();
     }
 }
 
