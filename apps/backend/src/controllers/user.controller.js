@@ -105,4 +105,29 @@ const refreshAccessToken = asyncHandler(
     }
 );
 
-export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken };
+const changePassword = asyncHandler(async (req, res) => {
+
+    const {
+        oldPassword,
+        newPassword,
+    } = req.body;
+
+    await userService.changePassword(
+        req.user._id,
+        oldPassword,
+        newPassword
+    );
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Password changed successfully"
+            )
+        );
+});
+
+
+export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken, changePassword  };
