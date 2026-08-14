@@ -1,5 +1,6 @@
 import userRepository from "../repositories/user.repository.js";
 import ApiError from "../utils/ApiError.js";
+import jwt from "jsonwebtoken";
 
 // =====================================================
 // Helper
@@ -120,24 +121,55 @@ const logoutUser = async (userId) => {
 // TOKEN
 // =====================================================
 
-const refreshAccessToken = async (userId) => {
+const refreshAccessToken = async (refreshToken) => {
 
-    const user =
-        await userRepository.findById(userId);
-
-    if (!user) {
+    if (!refreshToken) {
         throw new ApiError(
-            404,
-            "User not found"
+            401,
+            "Refresh token is required"
         );
     }
 
-    const accessToken =
+    let decodedToken;
+
+    try {
+        decodedToken = jwt.verify(
+            refreshToken,
+            process.env.JWT_REFRESH_SECRET
+        );
+    } catch (error) {
+        throw new ApiError(
+            401,
+            "Invalid or expired refresh token"
+        );
+    }
+
+    const user =
+        await userRepository.findById(
+            decodedToken._id
+        );
+
+    if (!user) {
+        throw new ApiError(
+            401,
+            "Invalid refresh token"
+        );
+    }
+
+    if (
+        user.refreshToken !== refreshToken
+    ) {
+        throw new ApiError(
+            401,
+            "Refresh token has been revoked"
+        );
+    }
+
+    const newAccessToken =
         user.generateAccessToken();
 
-    return accessToken;
+    return newAccessToken;
 };
-
 
 // =====================================================
 // PROFILE

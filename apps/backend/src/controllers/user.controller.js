@@ -81,6 +81,28 @@ const updateUserInfo = asyncHandler(async (req, res) => {
         );
 });
 
-export { registerUser, loginUser, logOutUser, me, updateUserInfo };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    const refreshToken =
+        req.cookies?.refreshToken ||
+        req.header("Authorization")?.replace(
+            "Bearer ",
+            ""
+        );
 
+    const newAccessToken =
+        await userService.refreshAccessToken(
+            refreshToken
+        );
 
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { accessToken: newAccessToken },
+                "Access token refreshed successfully"
+            )
+        );
+});
+
+export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken };
