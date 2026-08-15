@@ -129,5 +129,23 @@ const changePassword = asyncHandler(async (req, res) => {
         );
 });
 
+const updateAvatar = asyncHandler(async (req, res) => {
 
-export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken, changePassword  };
+    const user =
+        await userService.updateAvatar(
+            req.user._id,
+            req.file
+        );
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "Avatar updated successfully"
+            )
+        );
+});
+
+export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken, changePassword, updateAvatar };

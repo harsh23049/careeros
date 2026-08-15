@@ -1,6 +1,7 @@
 import userRepository from "../repositories/user.repository.js";
 import ApiError from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
+import uploadToCloudinary from "../utils/cloudinaryUpload.js";
 
 // =====================================================
 // Helper

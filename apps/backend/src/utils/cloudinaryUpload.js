@@ -1,26 +1,26 @@
 import cloudinary from "../config/cloudinary.js";
+import streamifier from "streamifier";
 
-const uploadToCloudinary = (fileBuffer, folder = "careeros/avatars") => {
+const uploadToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
             {
-                folder,
+                folder: "careeros/avatars",
                 resource_type: "image",
             },
             (error, result) => {
                 if (error) {
                     reject(error);
-                    return;
+                } else {
+                    resolve({
+                        url: result.secure_url,
+                        publicId: result.public_id,
+                    });
                 }
-
-                resolve({
-                    url: result.secure_url,
-                    publicId: result.public_id,
-                });
             }
         );
 
-        uploadStream.end(fileBuffer);
+        streamifier.createReadStream(buffer).pipe(uploadStream);
     });
 };
 
