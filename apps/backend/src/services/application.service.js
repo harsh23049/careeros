@@ -1,16 +1,14 @@
 import applicationRepository from "../repositories/application.repository.js";
 import ApiError from "../utils/ApiError.js";
 
+// Create a new application
 const createApplication = async (userId, applicationData) => {
     const {
-        company,
-        jobTitle,
-        jobUrl,
+        job,
+        resume,
+        coverLetter,
         status = "saved",
         appliedAt,
-        location,
-        employmentType,
-        salary,
         notes,
     } = applicationData;
 
@@ -30,14 +28,11 @@ const createApplication = async (userId, applicationData) => {
     const application =
         await applicationRepository.create({
             user: userId,
-            company,
-            jobTitle,
-            jobUrl,
+            job,
+            resume,
+            coverLetter,
             status,
             appliedAt: applicationDate,
-            location,
-            employmentType,
-            salary,
             notes,
             statusHistory,
         });
@@ -51,7 +46,7 @@ const getUserApplications = async (userId, status) => {
         return await applicationRepository.findByUserAndStatus(
             userId,
             status
-        ); 
+        );
     }
 
     return await applicationRepository.findByUser(userId);
@@ -98,14 +93,11 @@ const updateApplication = async (
     }
 
     const allowedFields = [
-        "company",
-        "jobTitle",
-        "jobUrl",
+        "job",
+        "resume",
+        "coverLetter",
         "status",
         "appliedAt",
-        "location",
-        "employmentType",
-        "salary",
         "notes",
     ];
 
@@ -117,7 +109,6 @@ const updateApplication = async (
         }
     }
 
-    // Record a new history entry when status changes
     if (
         updateData.status &&
         updateData.status !== application.status
