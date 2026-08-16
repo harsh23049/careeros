@@ -51,7 +51,7 @@ const getUserApplications = async (userId, status) => {
         return await applicationRepository.findByUserAndStatus(
             userId,
             status
-        );
+        ); 
     }
 
     return await applicationRepository.findByUser(userId);

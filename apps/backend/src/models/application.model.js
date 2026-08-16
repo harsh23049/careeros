@@ -11,7 +11,7 @@ const statusHistorySchema = new mongoose.Schema(
                 "oa",
                 "interview",
                 "offer",
-                "accepted",
+                "accepted", 
                 "rejected",
                 "withdrawn",
             ],
