@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-// STATUS HISTORY SCHEMA
+
 const statusHistorySchema = new mongoose.Schema(
     {
         status: {
@@ -11,11 +11,10 @@ const statusHistorySchema = new mongoose.Schema(
                 "oa",
                 "interview",
                 "offer",
-                "accepted", 
+                "accepted",
                 "rejected",
                 "withdrawn",
             ],
-            default: "saved",
             required: true,
         },
 
@@ -34,36 +33,40 @@ const statusHistorySchema = new mongoose.Schema(
         _id: false,
     }
 );
-// APPLICATION SCHEMA
+
 const applicationSchema = new mongoose.Schema(
     {
-        // Owner
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
             index: true,
         },
-        // Job Information
-        company: {
-            type: String,
-            required: [true, "Company name is required"],
-            trim: true,
-            maxlength: [100, "Company name cannot exceed 100 characters"],
+
+        job: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Job",
+            required: true,
+            index: true,
         },
 
-        jobTitle: {
-            type: String,
-            required: [true, "Job title is required"],
-            trim: true,
-            maxlength: [150, "Job title cannot exceed 150 characters"],
+        resume: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Resume",
         },
 
-        jobUrl: {
-            type: String,
-            trim: true,
+        coverLetter: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "CoverLetter",
         },
-        // Application Status
+
+        aiHistory: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "AIHistory",
+            },
+        ],
+
         status: {
             type: String,
             enum: [
@@ -80,62 +83,17 @@ const applicationSchema = new mongoose.Schema(
             default: "saved",
             index: true,
         },
-        // Application Date
+
         appliedAt: {
             type: Date,
         },
-        // Job Details
-        location: {
-            type: String,
-            trim: true,
-            maxlength: [100, "Location cannot exceed 100 characters"],
-        },
 
-        employmentType: {
-            type: String,
-            enum: [
-                "full-time",
-                "part-time",
-                "internship",
-                "contract",
-                "freelance",
-            ],
-        },
-        // Salary
-        salary: {
-            min: {
-                type: Number,
-                min: [0, "Salary cannot be negative"],
-            },
-
-            max: {
-                type: Number,
-                min: [0, "Salary cannot be negative"],
-            },
-
-            currency: {
-                type: String,
-                trim: true,
-                uppercase: true,
-                default: "INR",
-            },
-
-            period: {
-                type: String,
-                enum: [
-                    "hour",
-                    "month",
-                    "year",
-                ],
-            },
-        },
-        // Notes
         notes: {
             type: String,
             trim: true,
             maxlength: [2000, "Notes cannot exceed 2000 characters"],
         },
-        // Status History
+
         statusHistory: {
             type: [statusHistorySchema],
             default: [],
@@ -145,7 +103,7 @@ const applicationSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
-// MODEL
+
 const Application = mongoose.model(
     "Application",
     applicationSchema
