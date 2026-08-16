@@ -148,4 +148,18 @@ const updateAvatar = asyncHandler(async (req, res) => {
         );
 });
 
-export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken, changePassword, updateAvatar };
+const deleteAccount = asyncHandler(async (req, res) => {
+    await userService.deleteAccount(req.user._id);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Account deleted successfully"
+            )
+        );
+});
+
+export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken, changePassword, updateAvatar, deleteAccount };

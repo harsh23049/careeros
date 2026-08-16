@@ -33,6 +33,10 @@ class userRepository {
     async save(user){
         return await user.save();
     }
+
+    async deleteById(userId){
+        return await User.findByIdAndDelete(userId);
+    }
 }
 
 export default new userRepository();
