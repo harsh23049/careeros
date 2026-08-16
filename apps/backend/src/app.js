@@ -51,9 +51,13 @@ app.use(cookieParser());
 
 import userRoutes from "./routes/user.routes.js";
 import applicationRoutes from "./routes/application.routes.js";
+import jobRoutes from "./routes/job.routes.js";
+import resumeRoutes from "./routes/resume.routes.js";
 
+app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/applications", applicationRoutes);
+app.use("/api/v1/resumes", resumeRoutes);
 
 // Health Check Route
 app.use("/api/v1/health", healthRoutes);
