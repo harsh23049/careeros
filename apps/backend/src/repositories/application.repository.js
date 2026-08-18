@@ -2,10 +2,19 @@ import Application from "../models/application.model.js";
 
 class ApplicationRepository {
     // Create a new application
-    async create(applicationData) {
-        return await Application.create(applicationData);
-    }
+// Create a new application
+async create(applicationData) {
+    const application = await Application.create(
+        applicationData
+    );
 
+    return await Application.findById(
+        application._id
+    )
+        .populate("job")
+        .populate("resume")
+        .populate("coverLetter");
+}
     // Find an application by ID
     async findById(applicationId) {
         return await Application.findById(applicationId)
@@ -38,7 +47,7 @@ class ApplicationRepository {
             });
     }
 
-    // Find applications by status
+    // Find applications of a user by status
     async findByUserAndStatus(userId, status) {
         return await Application.find({
             user: userId,
