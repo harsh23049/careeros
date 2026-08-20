@@ -14,7 +14,7 @@ class CoverLetterRepository {
             coverLetterId
         );
     }
-
+ 
     // Find a cover letter belonging to a user
     async findByIdAndUser(
         coverLetterId,
