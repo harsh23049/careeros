@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const aiHistorySchema = new mongoose.Schema(
     {
+        // User who triggered the AI operation
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -9,17 +10,21 @@ const aiHistorySchema = new mongoose.Schema(
             index: true,
         },
 
+        // Application associated with this AI operation
         application: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Application",
             index: true,
         },
 
+        // Job associated with the AI operation
         job: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Job",
+            index: true,
         },
 
+        // What the AI was asked to do
         type: {
             type: String,
             enum: [
@@ -29,44 +34,50 @@ const aiHistorySchema = new mongoose.Schema(
                 "cover_letter",
                 "application_answer",
                 "recruiter_email",
-                "interview_preparation",
-                "other",
+                "interview_prep",
             ],
             required: true,
+            index: true,
         },
 
-        prompt: {
-            type: String,
-            trim: true,
-        },
-
-        input: {
-            type: mongoose.Schema.Types.Mixed,
-            default: {},
-        },
-
-        output: {
-            type: mongoose.Schema.Types.Mixed,
-            default: {},
-        },
-
+        // AI model used
         model: {
             type: String,
             trim: true,
         },
 
-        tokensUsed: {
-            type: Number,
-            min: 0,
+        // Input sent to the AI
+        input: {
+            type: mongoose.Schema.Types.Mixed,
         },
 
+        // AI-generated result
+        output: {
+            type: mongoose.Schema.Types.Mixed,
+        },
+
+        // Whether the user accepted/used the AI result
         accepted: {
             type: Boolean,
             default: false,
         },
 
-        acceptedAt: {
-            type: Date,
+        // Optional token/usage information
+        usage: {
+            promptTokens: {
+                type: Number,
+                min: 0,
+            },
+
+            completionTokens: {
+                type: Number,
+                min: 0,
+            },
+
+            totalTokens: {
+                type: Number,
+                min: 0,
+            },
         },
     },
     {
@@ -79,4 +90,4 @@ const AIHistory = mongoose.model(
     aiHistorySchema
 );
 
-export default AIHistory; 
+export default AIHistory;
