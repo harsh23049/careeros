@@ -79,4 +79,4 @@ const AIHistory = mongoose.model(
     aiHistorySchema
 );
 
-export default AIHistory;
+export default AIHistory; 
