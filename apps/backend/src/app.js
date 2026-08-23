@@ -54,6 +54,7 @@ import applicationRoutes from "./routes/application.routes.js";
 import jobRoutes from "./routes/job.routes.js";
 import resumeRoutes from "./routes/resume.routes.js";
 import coverLetterRoutes from "./routes/coverLetter.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 
 
 
@@ -62,6 +63,7 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/applications", applicationRoutes);
 app.use("/api/v1/resumes", resumeRoutes);
 app.use("/api/v1/cover-letters",coverLetterRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // Health Check Route
 app.use("/api/v1/health", healthRoutes);

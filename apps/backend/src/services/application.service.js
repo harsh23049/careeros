@@ -1,8 +1,15 @@
 import applicationRepository from "../repositories/application.repository.js";
+import * as notificationService from "./notification.service.js";
 import ApiError from "../utils/ApiError.js";
 
-// Create a new application
-const createApplication = async (userId, applicationData) => {
+// =====================================================
+// CREATE APPLICATION
+// =====================================================
+
+const createApplication = async (
+    userId,
+    applicationData
+) => {
     const {
         job,
         resume,
@@ -40,8 +47,14 @@ const createApplication = async (userId, applicationData) => {
     return application;
 };
 
-// Get all applications belonging to the current user
-const getUserApplications = async (userId, status) => {
+// =====================================================
+// GET ALL USER APPLICATIONS
+// =====================================================
+
+const getUserApplications = async (
+    userId,
+    status
+) => {
     if (status) {
         return await applicationRepository.findByUserAndStatus(
             userId,
@@ -49,10 +62,15 @@ const getUserApplications = async (userId, status) => {
         );
     }
 
-    return await applicationRepository.findByUser(userId);
+    return await applicationRepository.findByUser(
+        userId
+    );
 };
 
-// Get a single application after verifying ownership
+// =====================================================
+// GET SINGLE APPLICATION
+// =====================================================
+
 const getApplication = async (
     applicationId,
     userId
@@ -73,12 +91,19 @@ const getApplication = async (
     return application;
 };
 
-// Update application and record status changes
+// =====================================================
+// UPDATE APPLICATION
+// =====================================================
+
 const updateApplication = async (
     applicationId,
     userId,
     updateData
 ) => {
+    // -------------------------------------------------
+    // 1. Check ownership
+    // -------------------------------------------------
+
     const application =
         await applicationRepository.findByIdAndUser(
             applicationId,
@@ -91,6 +116,10 @@ const updateApplication = async (
             "Application not found"
         );
     }
+
+    // -------------------------------------------------
+    // 2. Allowed fields
+    // -------------------------------------------------
 
     const allowedFields = [
         "job",
@@ -109,10 +138,19 @@ const updateApplication = async (
         }
     }
 
-    if (
+    // -------------------------------------------------
+    // 3. Detect status change
+    // -------------------------------------------------
+
+    const statusChanged =
         updateData.status &&
-        updateData.status !== application.status
-    ) {
+        updateData.status !== application.status;
+
+    // -------------------------------------------------
+    // 4. Update status history
+    // -------------------------------------------------
+
+    if (statusChanged) {
         application.statusHistory.push({
             status: updateData.status,
             changedAt: new Date(),
@@ -121,6 +159,7 @@ const updateApplication = async (
         updates.statusHistory =
             application.statusHistory;
 
+        // Automatically set appliedAt
         if (
             updateData.status === "applied" &&
             !application.appliedAt &&
@@ -129,6 +168,10 @@ const updateApplication = async (
             updates.appliedAt = new Date();
         }
     }
+
+    // -------------------------------------------------
+    // 5. Update application in database
+    // -------------------------------------------------
 
     const updatedApplication =
         await applicationRepository.update(
@@ -143,10 +186,35 @@ const updateApplication = async (
         );
     }
 
+    // -------------------------------------------------
+    // 6. Create notification AFTER successful update
+    // -------------------------------------------------
+
+    if (statusChanged) {
+        await notificationService.createNotification(
+            userId,
+            {
+                type: "application_update",
+
+                title: "Application status updated",
+
+                message:
+                    `Your application status changed ` +
+                    `from ${application.status} ` +
+                    `to ${updateData.status}.`,
+
+                relatedApplication: applicationId,
+            }
+        );
+    }
+
     return updatedApplication;
 };
 
-// Delete an application after verifying ownership
+// =====================================================
+// DELETE APPLICATION
+// =====================================================
+
 const deleteApplication = async (
     applicationId,
     userId
@@ -170,6 +238,10 @@ const deleteApplication = async (
 
     return true;
 };
+
+// =====================================================
+// EXPORTS
+// =====================================================
 
 export {
     createApplication,
