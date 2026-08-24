@@ -59,14 +59,6 @@ const applicationSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "CoverLetter",
         },
-
-        aiHistory: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "AIHistory",
-            },
-        ],
-
         status: {
             type: String,
             enum: [
