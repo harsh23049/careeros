@@ -59,7 +59,7 @@ const applicationSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "CoverLetter",
         },
-        status: {
+        status: { 
             type: String,
             enum: [
                 "saved",
