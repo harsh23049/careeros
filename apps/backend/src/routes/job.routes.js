@@ -36,10 +36,15 @@ router.post(
     "/:jobId/analyze",
     analyzeJob
 );
+// Resume Matching
 router.post(
     "/:jobId/match-resume/:resumeId",
     matchResumeToJob
 );
+// AI Cover Letter Generation
+import {
+    generateCoverLetter,
+} from "../controllers/coverLetterAI.controller.js";
 
 
 export default router;
