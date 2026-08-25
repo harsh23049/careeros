@@ -13,6 +13,9 @@ import {
 } from "../controllers/jobAnalysis.controller.js";
 import { matchResumeToJob} from "../controllers/resumeMatching.controller.js";
 
+import {
+    generateCoverLetter,
+} from "../controllers/coverLetterAI.controller.js";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
 
@@ -42,9 +45,9 @@ router.post(
     matchResumeToJob
 );
 // AI Cover Letter Generation
-import {
-    generateCoverLetter,
-} from "../controllers/coverLetterAI.controller.js";
-
+router.post(
+    "/:jobId/cover-letter/:resumeId",
+    generateCoverLetter
+);
 
 export default router;
