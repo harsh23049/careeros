@@ -32,6 +32,7 @@ const aiHistorySchema = new mongoose.Schema(
                 "resume_analysis",
                 "resume_tailoring",
                 "cover_letter",
+                "resume_match",
                 "application_answer",
                 "recruiter_email",
                 "interview_prep",

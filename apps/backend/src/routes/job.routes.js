@@ -11,6 +11,8 @@ import {
 import {
     analyzeJob,
 } from "../controllers/jobAnalysis.controller.js";
+import { matchResumeToJob} from "../controllers/resumeMatching.controller.js";
+
 
 import authMiddleware from "../middlewares/auth.middleware.js";
 
@@ -34,5 +36,10 @@ router.post(
     "/:jobId/analyze",
     analyzeJob
 );
+router.post(
+    "/:jobId/match-resume/:resumeId",
+    matchResumeToJob
+);
+
 
 export default router;
