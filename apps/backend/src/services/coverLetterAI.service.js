@@ -132,6 +132,20 @@ INSTRUCTIONS
         );
     }
 
+    const latestCoverLetter =
+    await coverLetterRepository.findLatestVersion(
+        userId,
+        jobId,
+        resumeId
+    );
+
+
+    const nextVersion =
+    latestCoverLetter
+        ? latestCoverLetter.version + 1
+        : 1;
+
+        
     // 6. Create the CoverLetter document
     const coverLetter =
         await coverLetterRepository.create({

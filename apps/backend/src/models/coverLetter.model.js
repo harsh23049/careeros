@@ -28,6 +28,11 @@ const coverLetterSchema = new mongoose.Schema(
                 "Cover letter title cannot exceed 150 characters",
             ],
         },
+        resume: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Resume",
+            required: true,
+        },
 
         content: {
             type: String,

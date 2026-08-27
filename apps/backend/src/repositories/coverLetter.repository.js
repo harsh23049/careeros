@@ -14,7 +14,7 @@ class CoverLetterRepository {
             coverLetterId
         );
     }
- 
+
     // Find a cover letter belonging to a user
     async findByIdAndUser(
         coverLetterId,
@@ -23,6 +23,16 @@ class CoverLetterRepository {
         return await CoverLetter.findOne({
             _id: coverLetterId,
             user: userId,
+        });
+    }
+
+    async findLatestVersion(userId, jobId, resumeId) {
+        return await CoverLetter.findOne({
+            user: userId,
+            job: jobId,
+            resume: resumeId,
+        }).sort({
+            version: -1,
         });
     }
 

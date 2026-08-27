@@ -1,4 +1,7 @@
 import applicationRepository from "../repositories/application.repository.js";
+import jobRepository from "../repositories/job.repository.js";
+import resumeRepository from "../repositories/resume.repository.js";
+import coverLetterRepository from "../repositories/coverLetter.repository.js";
 import * as notificationService from "./notification.service.js";
 import ApiError from "../utils/ApiError.js";
 
@@ -19,6 +22,84 @@ const createApplication = async (
         notes,
     } = applicationData;
 
+    // -------------------------------------------------
+    // 1. Verify job exists
+    // -------------------------------------------------
+
+    const existingJob =
+        await jobRepository.findById(job);
+
+    if (!existingJob) {
+        throw new ApiError(
+            404,
+            "Job not found"
+        );
+    }
+
+    // -------------------------------------------------
+    // 2. Verify resume belongs to current user
+    // -------------------------------------------------
+
+    const existingResume =
+        await resumeRepository.findByIdAndUser(
+            resume,
+            userId
+        );
+
+    if (!existingResume) {
+        throw new ApiError(
+            404,
+            "Resume not found"
+        );
+    }
+
+    // -------------------------------------------------
+    // 3. Verify cover letter if provided
+    // -------------------------------------------------
+
+    if (coverLetter) {
+        const existingCoverLetter =
+            await coverLetterRepository.findByIdAndUser(
+                coverLetter,
+                userId
+            );
+
+        if (!existingCoverLetter) {
+            throw new ApiError(
+                404,
+                "Cover letter not found"
+            );
+        }
+
+        // Cover letter must belong to selected job
+        if (
+            !existingCoverLetter.job ||
+            existingCoverLetter.job.toString() !==
+                job.toString()
+        ) {
+            throw new ApiError(
+                400,
+                "Cover letter does not belong to this job"
+            );
+        }
+
+        // Cover letter must belong to selected resume
+        if (
+            !existingCoverLetter.resume ||
+            existingCoverLetter.resume.toString() !==
+                resume.toString()
+        ) {
+            throw new ApiError(
+                400,
+                "Cover letter does not belong to this resume"
+            );
+        }
+    }
+
+    // -------------------------------------------------
+    // 4. Create initial status history
+    // -------------------------------------------------
+
     const statusHistory = [
         {
             status,
@@ -26,11 +107,22 @@ const createApplication = async (
         },
     ];
 
+    // -------------------------------------------------
+    // 5. Set appliedAt automatically
+    // -------------------------------------------------
+
     let applicationDate = appliedAt;
 
-    if (status === "applied" && !applicationDate) {
+    if (
+        status === "applied" &&
+        !applicationDate
+    ) {
         applicationDate = new Date();
     }
+
+    // -------------------------------------------------
+    // 6. Create application
+    // -------------------------------------------------
 
     const application =
         await applicationRepository.create({
@@ -43,6 +135,28 @@ const createApplication = async (
             notes,
             statusHistory,
         });
+
+    // -------------------------------------------------
+    // 7. Notify user if application was submitted
+    // -------------------------------------------------
+
+    if (status === "applied") {
+        await notificationService.createNotification(
+            userId,
+            {
+                type: "application_update",
+
+                title: "Application submitted",
+
+                message:
+                    `Your application for ${existingJob.jobTitle} ` +
+                    `at ${existingJob.company} has been submitted.`,
+
+                relatedApplication:
+                    application._id,
+            }
+        );
+    }
 
     return application;
 };
@@ -146,6 +260,8 @@ const updateApplication = async (
         updateData.status &&
         updateData.status !== application.status;
 
+    const oldStatus = application.status;
+
     // -------------------------------------------------
     // 4. Update status history
     // -------------------------------------------------
@@ -187,7 +303,7 @@ const updateApplication = async (
     }
 
     // -------------------------------------------------
-    // 6. Create notification AFTER successful update
+    // 6. Create notification after successful update
     // -------------------------------------------------
 
     if (statusChanged) {
@@ -200,10 +316,11 @@ const updateApplication = async (
 
                 message:
                     `Your application status changed ` +
-                    `from ${application.status} ` +
+                    `from ${oldStatus} ` +
                     `to ${updateData.status}.`,
 
-                relatedApplication: applicationId,
+                relatedApplication:
+                    updatedApplication._id,
             }
         );
     }
