@@ -179,7 +179,7 @@ const getUserApplications = async (
     return await applicationRepository.findByUser(
         userId
     );
-};
+}; 
 
 // =====================================================
 // GET SINGLE APPLICATION
