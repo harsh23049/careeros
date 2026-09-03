@@ -11,7 +11,10 @@ const generateCoverLetter = async (
     resumeId,
     userId
 ) => {
+    // =====================================================
     // 1. Fetch the job
+    // =====================================================
+
     const job =
         await jobRepository.findById(jobId);
 
@@ -22,7 +25,10 @@ const generateCoverLetter = async (
         );
     }
 
+    // =====================================================
     // 2. Make sure the resume belongs to the user
+    // =====================================================
+
     const resume =
         await resumeRepository.findByIdAndUser(
             resumeId,
@@ -36,11 +42,17 @@ const generateCoverLetter = async (
         );
     }
 
-    // 3. Get job analysis if available
+    // =====================================================
+    // 3. Get job analysis
+    // =====================================================
+
     const jobAnalysis =
         job.extractedEntities || {};
 
-    // 4. Build the prompt
+    // =====================================================
+    // 4. Build Gemini prompt
+    // =====================================================
+
     const prompt = `
 Write a personalized professional cover letter
 for the candidate applying to the following job.
@@ -121,7 +133,10 @@ INSTRUCTIONS
 8. Return only the cover letter text.
 `;
 
-    // 5. Generate the cover letter
+    // =====================================================
+    // 5. Generate cover letter using Gemini
+    // =====================================================
+
     const result =
         await generateText(prompt);
 
@@ -132,40 +147,59 @@ INSTRUCTIONS
         );
     }
 
-    const latestCoverLetter =
-    await coverLetterRepository.findLatestVersion(
-        userId,
-        jobId,
-        resumeId
-    );
+    // =====================================================
+    // 6. Calculate next cover letter version
+    // =====================================================
 
+    const latestCoverLetter =
+        await coverLetterRepository.findLatestVersion(
+            userId,
+            jobId,
+            resumeId
+        );
 
     const nextVersion =
-    latestCoverLetter
-        ? latestCoverLetter.version + 1
-        : 1;
+        latestCoverLetter
+            ? latestCoverLetter.version + 1
+            : 1;
 
-        
-    // 6. Create the CoverLetter document
+    // =====================================================
+    // 7. Create a NEW CoverLetter document
+    // =====================================================
+
     const coverLetter =
         await coverLetterRepository.create({
             user: userId,
+            application: undefined,
             job: jobId,
-            title: `${job.company} - ${job.jobTitle} Cover Letter`,
+            resume: resumeId,
+
+            title:
+                `${job.company} - ${job.jobTitle} Cover Letter`,
+
             content: result.text,
+
             generatedByAI: true,
+
             aiModel:
                 process.env.GEMINI_MODEL ||
                 "gemini-3.6-flash",
+
             prompt,
-            version: 1,
+
+            version: nextVersion,
+
             isUsed: false,
         });
 
-    // 7. Save AI operation in AIHistory
+    // =====================================================
+    // 8. Save AI operation in AIHistory
+    // =====================================================
+
     const aiHistory =
         await aiHistoryRepository.create({
             user: userId,
+
             job: jobId,
 
             type: "cover_letter",
@@ -197,6 +231,10 @@ INSTRUCTIONS
                     result.usage?.totalTokenCount || 0,
             },
         });
+
+    // =====================================================
+    // 9. Return generated cover letter + AI history
+    // =====================================================
 
     return {
         coverLetter,

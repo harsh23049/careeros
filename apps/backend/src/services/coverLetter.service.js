@@ -96,13 +96,6 @@ const updateCoverLetter = async (
     const allowedFields = [
         "title",
         "content",
-        "generatedByAI",
-        "aiModel",
-        "prompt",
-        "version",
-        "isUsed",
-        "application",
-        "job",
     ];
 
     const updates = {};
@@ -111,6 +104,13 @@ const updateCoverLetter = async (
         if (updateData[field] !== undefined) {
             updates[field] = updateData[field];
         }
+    }
+
+    if (Object.keys(updates).length === 0) {
+        throw new ApiError(
+            400,
+            "No valid fields to update"
+        );
     }
 
     const updatedCoverLetter =
