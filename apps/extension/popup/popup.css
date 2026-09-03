@@ -1,0 +1,28 @@
+body {
+    width: 320px;
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    padding: 16px;
+}
+
+h1 {
+    margin-top: 0;
+}
+
+#job {
+    margin: 16px 0;
+}
+
+p {
+    font-size: 14px;
+    word-break: break-word;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    cursor: pointer;
+}
