@@ -21,8 +21,19 @@ p {
     word-break: break-word;
 }
 
+#description {
+    display: inline-block;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
 button {
     width: 100%;
     padding: 10px;
     cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }

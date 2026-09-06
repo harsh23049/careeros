@@ -1,9 +1,102 @@
+import { saveJob } from "../services/api.js";
+
 const status = document.getElementById("status");
 const jobTitle = document.getElementById("jobTitle");
+const company = document.getElementById("company");
+const location = document.getElementById("location");
+const description = document.getElementById("description");
 const jobUrl = document.getElementById("jobUrl");
 const saveJobButton = document.getElementById("saveJob");
 
 let currentJob = null;
+
+const recognizedPageTypes = [
+    "linkedin_job",
+    "naukri_job",
+    "greenhouse_job",
+    "workday_job",
+    "google_form",
+    "unknown"
+];
+
+const jobPageTypes = [
+    "linkedin_job",
+    "naukri_job",
+    "greenhouse_job",
+    "workday_job"
+];
+
+const restrictedPagePrefixes = [
+    "chrome://",
+    "chrome-extension://",
+    "edge://",
+    "about:",
+    "view-source:"
+];
+
+function isRestrictedPage(url = "") {
+    return restrictedPagePrefixes.some((prefix) =>
+        url.startsWith(prefix)
+    ) || url.includes("chrome.google.com/webstore")
+        || url.includes("chromewebstore.google.com");
+}
+
+function hasValidJobData(job) {
+    return Boolean(
+        job &&
+        jobPageTypes.includes(job.pageType) &&
+        job.jobTitle?.trim() &&
+        job.company?.trim() &&
+        job.jobUrl?.trim()
+    );
+}
+
+function sendPageData(tabId) {
+    return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(
+            tabId,
+            {
+                type: "GET_PAGE_DATA",
+            },
+            (response) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+
+                resolve(response);
+            }
+        );
+    });
+}
+
+function injectContentScript(tabId) {
+    return new Promise((resolve, reject) => {
+        chrome.scripting.executeScript(
+            {
+                target: { tabId },
+                files: ["content/content.js"]
+            },
+            () => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+
+                resolve();
+            }
+        );
+    });
+}
+
+async function requestPageData(tabId) {
+    try {
+        return await sendPageData(tabId);
+    } catch {
+        await injectContentScript(tabId);
+        return sendPageData(tabId);
+    }
+}
 
 async function loadJob() {
 
@@ -14,70 +107,90 @@ async function loadJob() {
             currentWindow: true,
         });
 
-        chrome.tabs.sendMessage(
-            tab.id,
-            {
-                type: "GET_JOB_DATA",
-            },
-            (response) => {
+        if (!tab?.id || !tab.url) {
+            status.textContent = "No active tab found.";
+            return;
+        }
 
-                if (chrome.runtime.lastError) {
-                    status.textContent =
-                        "Unable to read this page.";
+        if (isRestrictedPage(tab.url)) {
+            status.textContent =
+                "This page cannot be accessed by CareerOS.";
+            return;
+        }
 
-                    return;
-                }
+        const response = await requestPageData(tab.id);
 
-                if (!response?.success) {
-                    status.textContent =
-                        "Could not extract job.";
+        if (!response?.success) {
+            status.textContent =
+                response?.error || "Could not extract job.";
+            return;
+        }
 
-                    return;
-                }
+        currentJob = response.data;
 
-                currentJob = response.data;
+        if (!recognizedPageTypes.includes(currentJob.pageType)) {
+            status.textContent = "Could not identify this page.";
+            return;
+        }
 
-                jobTitle.textContent =
-                    currentJob.jobTitle;
+        jobTitle.textContent =
+            currentJob.jobTitle || "Not found";
 
-                jobUrl.textContent =
-                    currentJob.jobUrl;
+        company.textContent =
+            currentJob.company || "Not found";
 
-                status.textContent =
-                    "Job detected.";
-            }
-        );
+        location.textContent =
+            currentJob.location || "Not found";
+
+        description.textContent =
+            currentJob.description || "Not found";
+
+        jobUrl.textContent =
+            currentJob.jobUrl || "Not found";
+
+        saveJobButton.disabled = !hasValidJobData(currentJob);
+
+        status.textContent = jobPageTypes.includes(
+            currentJob.pageType
+        ) ? "Job detected." : "No job detected.";
 
     } catch (error) {
 
         console.error(error);
 
         status.textContent =
-            "Something went wrong.";
+            "This page cannot be accessed by CareerOS.";
     }
 }
 
-saveJobButton.addEventListener(
-    "click",
-    async () => {
-
-        if (!currentJob) {
-            status.textContent =
-                "No job detected.";
-
-            return;
-        }
-
-        console.log(
-            "Job ready to save:",
-            currentJob
-        );
-
-        status.textContent =
-            "Job ready to save.";
-
-        // Backend connection comes next.
+async function handleSaveJob() {
+    if (!hasValidJobData(currentJob)) {
+        status.textContent = "No valid job detected.";
+        return;
     }
-);
+
+    saveJobButton.disabled = true;
+    status.textContent = "Saving...";
+
+    try {
+        await saveJob(currentJob);
+        status.textContent = "Job saved successfully.";
+    } catch (error) {
+        console.error("CareerOS save job failed:", error);
+
+        if (error.status === 401 || error.status === 403) {
+            status.textContent = "Please log in to CareerOS.";
+        } else if (error.status === 409) {
+            status.textContent = "Job already saved.";
+        } else {
+            status.textContent =
+                "Unable to save job. Please try again.";
+        }
+    } finally {
+        saveJobButton.disabled = false;
+    }
+}
+
+saveJobButton.addEventListener("click", handleSaveJob);
 
 loadJob(); 
