@@ -75,5 +75,56 @@ const saveJob = async (jobData) => {
   return responseBody;
 };
 
-export { saveJob };
+const analyzeJob = async (jobId) => {
+  if (!jobId?.trim()) {
+    throw createApiError(
+      400,
+      "Job ID is required for analysis."
+    );
+  }
+
+  const accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    throw createApiError(
+      401,
+      "Please log in to CareerOS."
+    );
+  }
+
+  let response;
+  let responseBody = {};
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/analyze`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error("CareerOS analyze job request failed:", error);
+    throw createApiError(
+      0,
+      "Unable to connect to CareerOS."
+    );
+  }
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not analyze the job."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
+export { saveJob, analyzeJob };
  

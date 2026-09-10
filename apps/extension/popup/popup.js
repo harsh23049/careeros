@@ -1,4 +1,4 @@
-import { saveJob } from "../services/api.js";
+import { saveJob, analyzeJob } from "../services/api.js";
 
 const status = document.getElementById("status");
 const jobTitle = document.getElementById("jobTitle");
@@ -7,6 +7,8 @@ const location = document.getElementById("location");
 const description = document.getElementById("description");
 const jobUrl = document.getElementById("jobUrl");
 const saveJobButton = document.getElementById("saveJob");
+const analyzeJobButton = document.getElementById("analyzeJob");
+const analysisContainer = document.getElementById("analysis");
 
 let currentJob = null;
 
@@ -68,6 +70,69 @@ function sendPageData(tabId) {
             }
         );
     });
+}
+
+function renderAnalysis(analysis) {
+    analysisContainer.innerHTML = "";
+
+    if (!analysis || typeof analysis !== "object") {
+        analysisContainer.innerHTML = "<p>No analysis available.</p>";
+        return;
+    }
+
+    const fieldTitles = {
+        skills: "Skills",
+        requirements: "Requirements",
+        responsibilities: "Responsibilities",
+        technologies: "Technologies",
+        domains: "Domains",
+    };
+
+    if (analysis.summary?.trim()) {
+        const summarySection = document.createElement("div");
+        summarySection.className = "analysis-section";
+
+        const summaryHeading = document.createElement("h3");
+        summaryHeading.textContent = "Summary";
+        const summaryText = document.createElement("p");
+        summaryText.textContent = analysis.summary;
+
+        summarySection.appendChild(summaryHeading);
+        summarySection.appendChild(summaryText);
+        analysisContainer.appendChild(summarySection);
+    }
+
+    Object.entries(fieldTitles).forEach(([field, title]) => {
+        const items = Array.isArray(analysis[field])
+            ? analysis[field].filter((item) => item && String(item).trim())
+            : [];
+
+        if (!items.length) {
+            return;
+        }
+
+        const section = document.createElement("div");
+        section.className = "analysis-section";
+
+        const heading = document.createElement("h3");
+        heading.textContent = title;
+
+        const list = document.createElement("ul");
+
+        items.forEach((item) => {
+            const listItem = document.createElement("li");
+            listItem.textContent = item;
+            list.appendChild(listItem);
+        });
+
+        section.appendChild(heading);
+        section.appendChild(list);
+        analysisContainer.appendChild(section);
+    });
+
+    if (analysisContainer.children.length === 0) {
+        analysisContainer.innerHTML = "<p>No analysis details returned.</p>";
+    }
 }
 
 function injectContentScript(tabId) {
@@ -148,7 +213,9 @@ async function loadJob() {
         jobUrl.textContent =
             currentJob.jobUrl || "Not found";
 
+        analysisContainer.innerHTML = "";
         saveJobButton.disabled = !hasValidJobData(currentJob);
+        analyzeJobButton.disabled = !hasValidJobData(currentJob);
 
         status.textContent = jobPageTypes.includes(
             currentJob.pageType
@@ -191,6 +258,53 @@ async function handleSaveJob() {
     }
 }
 
+async function handleAnalyzeJob() {
+    if (!hasValidJobData(currentJob)) {
+        status.textContent = "No valid job detected.";
+        return;
+    }
+
+    saveJobButton.disabled = true;
+    analyzeJobButton.disabled = true;
+    analysisContainer.innerHTML = "";
+    status.textContent = "Analyzing...";
+
+    try {
+        let jobId = currentJob?._id;
+
+        if (!jobId) {
+            const savedJobResponse = await saveJob(currentJob);
+            const savedJob = savedJobResponse?.data || savedJobResponse;
+            jobId = savedJob?._id;
+
+            if (!jobId) {
+                throw new Error("CareerOS did not return a job ID.");
+            }
+
+            currentJob._id = jobId;
+        }
+
+        const analysisResponse = await analyzeJob(jobId);
+        const analysis = analysisResponse?.analysis || analysisResponse;
+
+        renderAnalysis(analysis);
+        status.textContent = "Job analysis ready.";
+    } catch (error) {
+        console.error("CareerOS analyze job failed:", error);
+
+        if (error.status === 401 || error.status === 403) {
+            status.textContent = "Please log in to CareerOS.";
+        } else {
+            status.textContent =
+                "Unable to analyze this job. Please try again.";
+        }
+    } finally {
+        saveJobButton.disabled = !hasValidJobData(currentJob);
+        analyzeJobButton.disabled = !hasValidJobData(currentJob);
+    }
+}
+
 saveJobButton.addEventListener("click", handleSaveJob);
+analyzeJobButton.addEventListener("click", handleAnalyzeJob);
 
 loadJob(); 
