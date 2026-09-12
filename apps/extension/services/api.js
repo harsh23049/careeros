@@ -81,7 +81,7 @@ const analyzeJob = async (jobId) => {
       400,
       "Job ID is required for analysis."
     );
-  }
+  } 
 
   const accessToken = await getAccessToken();
 
