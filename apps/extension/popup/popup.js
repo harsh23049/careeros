@@ -246,7 +246,11 @@ async function handleSaveJob() {
     status.textContent = "Saving...";
 
     try {
-        await saveJob(currentJob);
+        const response = await saveJob(currentJob);
+        const savedJob = response?.data || response;
+        if (savedJob?._id) {
+            currentJob._id = savedJob._id;
+        }
         status.textContent = "Job saved successfully.";
     } catch (error) {
         console.error("CareerOS save job failed:", error);
@@ -315,15 +319,19 @@ async function handleAnalyzeJob() {
 async function loadResumes() {
     try {
         const resumes = await getResumes();
+        const resumeList = Array.isArray(resumes) ? resumes : (resumes?.data || []);
         
         resumeSelect.innerHTML = "";
         
-        if (!resumes || resumes.length === 0) {
+        if (!resumeList || resumeList.length === 0) {
             resumeSelect.innerHTML = "<option value=''>No resumes found</option>";
+            matchResumeButton.disabled = true;
+            generateCoverLetterButton.disabled = true;
+            resumeSection.style.display = "flex";
             return;
         }
 
-        resumes.forEach(resume => {
+        resumeList.forEach(resume => {
             const option = document.createElement("option");
             option.value = resume._id;
             option.textContent = resume.title + (resume.isDefault ? " (Default)" : "");
@@ -379,6 +387,11 @@ async function handleMatchResume() {
     const resumeId = resumeSelect.value;
     if (!resumeId) return;
 
+    if (!currentJob?._id) {
+        status.textContent = "Please analyze the job first.";
+        return;
+    }
+
     matchResumeButton.disabled = true;
     generateCoverLetterButton.disabled = true;
     status.textContent = "Matching resume...";
@@ -391,7 +404,13 @@ async function handleMatchResume() {
         status.textContent = "Match complete.";
     } catch (error) {
         console.error("Match failed:", error);
-        status.textContent = "Failed to match resume.";
+        if (error.status === 400) {
+            status.textContent = "Please analyze the job first.";
+        } else if (error.status === 401 || error.status === 403) {
+            status.textContent = "Please log in to CareerOS.";
+        } else {
+            status.textContent = error.message || "Failed to match resume.";
+        }
     } finally {
         matchResumeButton.disabled = false;
         generateCoverLetterButton.disabled = false;
@@ -403,6 +422,11 @@ let currentCoverLetterId = null;
 async function handleGenerateCoverLetter() {
     const resumeId = resumeSelect.value;
     if (!resumeId) return;
+
+    if (!currentJob?._id) {
+        status.textContent = "Please analyze or save the job first.";
+        return;
+    }
 
     matchResumeButton.disabled = true;
     generateCoverLetterButton.disabled = true;
@@ -419,7 +443,7 @@ async function handleGenerateCoverLetter() {
 
         const textarea = document.createElement("textarea");
         textarea.className = "cover-letter-text";
-        textarea.value = result.content || result;
+        textarea.value = result.content || (typeof result === "string" ? result : "");
         coverLetterResultContainer.appendChild(textarea);
 
         const actionsDiv = document.createElement("div");
@@ -457,7 +481,11 @@ async function handleGenerateCoverLetter() {
         status.textContent = "Cover letter generated.";
     } catch (error) {
         console.error("Cover letter generation failed:", error);
-        status.textContent = "Failed to generate cover letter.";
+        if (error.status === 401 || error.status === 403) {
+            status.textContent = "Please log in to CareerOS.";
+        } else {
+            status.textContent = error.message || "Failed to generate cover letter.";
+        }
     } finally {
         matchResumeButton.disabled = false;
         generateCoverLetterButton.disabled = false;
