@@ -55,6 +55,20 @@
 
         <div id="analysis" class="analysis"></div>
 
+        <div id="resumeSection" class="resume-section" style="display:none">
+            <label for="resumeSelect">Select Resume:</label>
+            <select id="resumeSelect">
+                <option value="">Loading resumes...</option>
+            </select>
+            <div class="actions">
+                <button id="matchResume" disabled>Match Resume</button>
+                <button id="generateCoverLetter" disabled>Generate Cover Letter</button>
+            </div>
+        </div>
+
+        <div id="matchResult" class="match-result" style="display:none"></div>
+        <div id="coverLetterResult" class="cover-letter-result" style="display:none"></div>
+
     </div>
 
     <script type="module" src="popup.js"></script>

@@ -1,4 +1,4 @@
-import { saveJob, analyzeJob, getResumes, matchResume, generateCoverLetter, createApplication } from "../services/api.js";
+import { saveJob, analyzeJob } from "../services/api.js";
 
 const status = document.getElementById("status");
 const jobTitle = document.getElementById("jobTitle");
@@ -9,12 +9,6 @@ const jobUrl = document.getElementById("jobUrl");
 const saveJobButton = document.getElementById("saveJob");
 const analyzeJobButton = document.getElementById("analyzeJob");
 const analysisContainer = document.getElementById("analysis");
-const resumeSection = document.getElementById("resumeSection");
-const resumeSelect = document.getElementById("resumeSelect");
-const matchResumeButton = document.getElementById("matchResume");
-const generateCoverLetterButton = document.getElementById("generateCoverLetter");
-const matchResultContainer = document.getElementById("matchResult");
-const coverLetterResultContainer = document.getElementById("coverLetterResult");
 
 let currentJob = null;
 
@@ -295,8 +289,6 @@ async function handleAnalyzeJob() {
 
         renderAnalysis(analysis);
         status.textContent = "Job analysis ready.";
-        
-        await loadResumes();
     } catch (error) {
         console.error("CareerOS analyze job failed:", error);
 
@@ -312,161 +304,7 @@ async function handleAnalyzeJob() {
     }
 }
 
-async function loadResumes() {
-    try {
-        const resumes = await getResumes();
-        
-        resumeSelect.innerHTML = "";
-        
-        if (!resumes || resumes.length === 0) {
-            resumeSelect.innerHTML = "<option value=''>No resumes found</option>";
-            return;
-        }
-
-        resumes.forEach(resume => {
-            const option = document.createElement("option");
-            option.value = resume._id;
-            option.textContent = resume.title + (resume.isDefault ? " (Default)" : "");
-            resumeSelect.appendChild(option);
-            
-            if (resume.isDefault) {
-                option.selected = true;
-            }
-        });
-
-        resumeSection.style.display = "flex";
-        matchResumeButton.disabled = false;
-        generateCoverLetterButton.disabled = false;
-    } catch (error) {
-        console.error("Failed to load resumes:", error);
-        resumeSelect.innerHTML = "<option value=''>Error loading resumes</option>";
-    }
-}
-
-function renderMatchResult(matchAnalysis) {
-    matchResultContainer.innerHTML = "";
-    matchResultContainer.style.display = "block";
-    coverLetterResultContainer.style.display = "none";
-
-    const scoreDiv = document.createElement("div");
-    scoreDiv.className = "match-score";
-    scoreDiv.textContent = `${matchAnalysis.matchScore || 0}% Match`;
-    matchResultContainer.appendChild(scoreDiv);
-
-    const renderList = (title, items, className = "") => {
-        if (!items || items.length === 0) return;
-        const h4 = document.createElement("h4");
-        h4.textContent = title;
-        const ul = document.createElement("ul");
-        if (className) ul.className = className;
-        items.forEach(item => {
-            const li = document.createElement("li");
-            li.textContent = item;
-            ul.appendChild(li);
-        });
-        matchResultContainer.appendChild(h4);
-        matchResultContainer.appendChild(ul);
-    };
-
-    renderList("Matching Skills", matchAnalysis.matchingSkills, "skills-matching");
-    renderList("Missing Skills", matchAnalysis.missingSkills, "skills-missing");
-    renderList("Strengths", matchAnalysis.strengths);
-    renderList("Weaknesses", matchAnalysis.weaknesses);
-    renderList("Recommendations", matchAnalysis.recommendations);
-}
-
-async function handleMatchResume() {
-    const resumeId = resumeSelect.value;
-    if (!resumeId) return;
-
-    matchResumeButton.disabled = true;
-    generateCoverLetterButton.disabled = true;
-    status.textContent = "Matching resume...";
-    matchResultContainer.style.display = "none";
-    coverLetterResultContainer.style.display = "none";
-
-    try {
-        const result = await matchResume(currentJob._id, resumeId);
-        renderMatchResult(result);
-        status.textContent = "Match complete.";
-    } catch (error) {
-        console.error("Match failed:", error);
-        status.textContent = "Failed to match resume.";
-    } finally {
-        matchResumeButton.disabled = false;
-        generateCoverLetterButton.disabled = false;
-    }
-}
-
-let currentCoverLetterId = null;
-
-async function handleGenerateCoverLetter() {
-    const resumeId = resumeSelect.value;
-    if (!resumeId) return;
-
-    matchResumeButton.disabled = true;
-    generateCoverLetterButton.disabled = true;
-    status.textContent = "Generating cover letter...";
-    matchResultContainer.style.display = "none";
-    coverLetterResultContainer.style.display = "none";
-
-    try {
-        const result = await generateCoverLetter(currentJob._id, resumeId);
-        currentCoverLetterId = result._id;
-        
-        coverLetterResultContainer.innerHTML = "";
-        coverLetterResultContainer.style.display = "block";
-
-        const textarea = document.createElement("textarea");
-        textarea.className = "cover-letter-text";
-        textarea.value = result.content || result;
-        coverLetterResultContainer.appendChild(textarea);
-
-        const actionsDiv = document.createElement("div");
-        actionsDiv.className = "actions";
-        
-        const copyBtn = document.createElement("button");
-        copyBtn.textContent = "Copy to Clipboard";
-        copyBtn.className = "btn-secondary";
-        copyBtn.onclick = () => {
-            navigator.clipboard.writeText(textarea.value);
-            copyBtn.textContent = "Copied!";
-            setTimeout(() => { copyBtn.textContent = "Copy to Clipboard"; }, 2000);
-        };
-        actionsDiv.appendChild(copyBtn);
-
-        const applyBtn = document.createElement("button");
-        applyBtn.textContent = "Add to Applications";
-        applyBtn.onclick = async () => {
-            try {
-                applyBtn.disabled = true;
-                applyBtn.textContent = "Saving...";
-                await createApplication(currentJob._id, resumeId, currentCoverLetterId);
-                applyBtn.textContent = "Application saved!";
-                status.textContent = "Added to applications.";
-            } catch (err) {
-                console.error("Failed to create application", err);
-                applyBtn.textContent = "Failed to save";
-                applyBtn.disabled = false;
-            }
-        };
-        actionsDiv.appendChild(applyBtn);
-
-        coverLetterResultContainer.appendChild(actionsDiv);
-        
-        status.textContent = "Cover letter generated.";
-    } catch (error) {
-        console.error("Cover letter generation failed:", error);
-        status.textContent = "Failed to generate cover letter.";
-    } finally {
-        matchResumeButton.disabled = false;
-        generateCoverLetterButton.disabled = false;
-    }
-}
-
 saveJobButton.addEventListener("click", handleSaveJob);
 analyzeJobButton.addEventListener("click", handleAnalyzeJob);
-matchResumeButton.addEventListener("click", handleMatchResume);
-generateCoverLetterButton.addEventListener("click", handleGenerateCoverLetter);
 
 loadJob(); 

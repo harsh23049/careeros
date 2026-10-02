@@ -126,5 +126,162 @@ const analyzeJob = async (jobId) => {
   return responseBody.data || responseBody;
 };
 
-export { saveJob, analyzeJob };
- 
+
+const getResumes = async () => {
+  const accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    throw createApiError(401, "Please log in to CareerOS.");
+  }
+
+  let response;
+  let responseBody = {};
+
+  try {
+    response = await fetch(`${API_BASE_URL}/resumes`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+      },
+    });
+
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error("CareerOS API request failed:", error);
+    throw createApiError(0, "Unable to connect to CareerOS.");
+  }
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not fetch resumes."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
+const matchResume = async (jobId, resumeId) => {
+  if (!jobId || !resumeId) {
+    throw createApiError(400, "Job ID and Resume ID are required.");
+  }
+
+  const accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    throw createApiError(401, "Please log in to CareerOS.");
+  }
+
+  let response;
+  let responseBody = {};
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/match-resume/${encodeURIComponent(resumeId)}`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error("CareerOS API request failed:", error);
+    throw createApiError(0, "Unable to connect to CareerOS.");
+  }
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not match the resume."
+    );
+  }
+
+  return responseBody.data?.matchAnalysis || responseBody.matchAnalysis || responseBody;
+};
+
+const generateCoverLetter = async (jobId, resumeId) => {
+  if (!jobId || !resumeId) {
+    throw createApiError(400, "Job ID and Resume ID are required.");
+  }
+
+  const accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    throw createApiError(401, "Please log in to CareerOS.");
+  }
+
+  let response;
+  let responseBody = {};
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/cover-letter/${encodeURIComponent(resumeId)}`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error("CareerOS API request failed:", error);
+    throw createApiError(0, "Unable to connect to CareerOS.");
+  }
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not generate cover letter."
+    );
+  }
+
+  return responseBody.data?.coverLetter || responseBody.coverLetter || responseBody;
+};
+
+const createApplication = async (jobId, resumeId, coverLetterId) => {
+  const accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    throw createApiError(401, "Please log in to CareerOS.");
+  }
+
+  let response;
+  let responseBody = {};
+
+  try {
+    response = await fetch(`${API_BASE_URL}/applications`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        job: jobId,
+        resume: resumeId,
+        coverLetter: coverLetterId,
+        status: "saved"
+      }),
+    });
+
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error("CareerOS API request failed:", error);
+    throw createApiError(0, "Unable to connect to CareerOS.");
+  }
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not create application."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
+export { saveJob, analyzeJob, getResumes, matchResume, generateCoverLetter, createApplication };
