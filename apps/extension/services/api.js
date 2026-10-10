@@ -203,15 +203,6 @@ const saveJob = async (jobData) => {
     );
   }
 
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw createApiError(
-      401,
-      "Please log in to CareerOS."
-    );
-  }
-
   const jobPayload = {
     company: jobData.company,
     jobTitle: jobData.jobTitle,
@@ -220,30 +211,16 @@ const saveJob = async (jobData) => {
     location: jobData.location,
   };
 
-  let response;
-  let responseBody = {};
-
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/jobs`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(jobPayload),
-      }
-    );
-
-    responseBody = await response.json().catch(() => ({}));
-  } catch (error) {
-    console.error("CareerOS API request failed:", error);
-    throw createApiError(
-      0,
-      "Unable to connect to CareerOS."
-    );
-  }
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/jobs`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(jobPayload),
+    }
+  );
 
   if (!response.ok) {
     throw createApiError(
@@ -261,40 +238,17 @@ const analyzeJob = async (jobId) => {
       400,
       "Job ID is required for analysis."
     );
-  } 
-
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw createApiError(
-      401,
-      "Please log in to CareerOS."
-    );
   }
 
-  let response;
-  let responseBody = {};
-
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/analyze`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    responseBody = await response.json().catch(() => ({}));
-  } catch (error) {
-    console.error("CareerOS analyze job request failed:", error);
-    throw createApiError(
-      0,
-      "Unable to connect to CareerOS."
-    );
-  }
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/analyze`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
   if (!response.ok) {
     throw createApiError(
@@ -306,30 +260,13 @@ const analyzeJob = async (jobId) => {
   return responseBody.data || responseBody;
 };
 
-
 const getResumes = async () => {
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw createApiError(401, "Please log in to CareerOS.");
-  }
-
-  let response;
-  let responseBody = {};
-
-  try {
-    response = await fetch(`${API_BASE_URL}/resumes`, {
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/resumes`,
+    {
       method: "GET",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-      },
-    });
-
-    responseBody = await response.json().catch(() => ({}));
-  } catch (error) {
-    console.error("CareerOS API request failed:", error);
-    throw createApiError(0, "Unable to connect to CareerOS.");
-  }
+    }
+  );
 
   if (!response.ok) {
     throw createApiError(
@@ -346,31 +283,12 @@ const matchResume = async (jobId, resumeId) => {
     throw createApiError(400, "Job ID and Resume ID are required.");
   }
 
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw createApiError(401, "Please log in to CareerOS.");
-  }
-
-  let response;
-  let responseBody = {};
-
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/match-resume/${encodeURIComponent(resumeId)}`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    responseBody = await response.json().catch(() => ({}));
-  } catch (error) {
-    console.error("CareerOS API request failed:", error);
-    throw createApiError(0, "Unable to connect to CareerOS.");
-  }
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/match-resume/${encodeURIComponent(resumeId)}`,
+    {
+      method: "POST",
+    }
+  );
 
   if (!response.ok) {
     throw createApiError(
@@ -387,31 +305,12 @@ const generateCoverLetter = async (jobId, resumeId) => {
     throw createApiError(400, "Job ID and Resume ID are required.");
   }
 
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw createApiError(401, "Please log in to CareerOS.");
-  }
-
-  let response;
-  let responseBody = {};
-
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/cover-letter/${encodeURIComponent(resumeId)}`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    responseBody = await response.json().catch(() => ({}));
-  } catch (error) {
-    console.error("CareerOS API request failed:", error);
-    throw createApiError(0, "Unable to connect to CareerOS.");
-  }
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/cover-letter/${encodeURIComponent(resumeId)}`,
+    {
+      method: "POST",
+    }
+  );
 
   if (!response.ok) {
     throw createApiError(
@@ -424,35 +323,21 @@ const generateCoverLetter = async (jobId, resumeId) => {
 };
 
 const createApplication = async (jobId, resumeId, coverLetterId) => {
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw createApiError(401, "Please log in to CareerOS.");
-  }
-
-  let response;
-  let responseBody = {};
-
-  try {
-    response = await fetch(`${API_BASE_URL}/applications`, {
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/applications`,
+    {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         job: jobId,
         resume: resumeId,
         coverLetter: coverLetterId,
-        status: "saved"
+        status: "saved",
       }),
-    });
-
-    responseBody = await response.json().catch(() => ({}));
-  } catch (error) {
-    console.error("CareerOS API request failed:", error);
-    throw createApiError(0, "Unable to connect to CareerOS.");
-  }
+    }
+  );
 
   if (!response.ok) {
     throw createApiError(
