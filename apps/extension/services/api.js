@@ -90,6 +90,69 @@ const requestTokenRefresh = () => {
   return refreshPromise;
 };
 
+const authenticatedFetch = async (url, options = {}) => {
+  let accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    const refreshToken = await getRefreshToken();
+    if (refreshToken) {
+      accessToken = await requestTokenRefresh();
+    } else {
+      throw createApiError(401, "Please log in to CareerOS.");
+    }
+  }
+
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${accessToken}`,
+  };
+
+  let response;
+  let responseBody = {};
+
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error("CareerOS API request failed:", error);
+    throw createApiError(0, "Unable to connect to CareerOS.");
+  }
+
+  if (response.status === 401) {
+    try {
+      accessToken = await requestTokenRefresh();
+    } catch (refreshError) {
+      throw refreshError;
+    }
+
+    const retryHeaders = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: retryHeaders,
+      });
+      responseBody = await response.json().catch(() => ({}));
+    } catch (error) {
+      console.error("CareerOS API retry request failed:", error);
+      throw createApiError(0, "Unable to connect to CareerOS.");
+    }
+
+    if (response.status === 401) {
+      await clearTokens();
+      throw createApiError(401, "Please log in to CareerOS.");
+    }
+  }
+
+  return { response, responseBody };
+};
+
 const login = async (email, password) => {
   if (!email?.trim() || !password?.trim()) {
     throw createApiError(400, "Email and password are required.");
