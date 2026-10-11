@@ -12,10 +12,15 @@ const authMiddleware = asyncHandler(async (req, res, next) => {
         throw new ApiError(401, "Unauthorized request");
     }
 
-    const decodedToken = jwt.verify(
-        token,
-        process.env.JWT_ACCESS_SECRET
-    );
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(
+            token,
+            process.env.JWT_ACCESS_SECRET
+        );
+    } catch (error) {
+        throw new ApiError(401, "Invalid or expired access token");
+    }
 
     const user = await userRepository.findById(
         decodedToken._id
