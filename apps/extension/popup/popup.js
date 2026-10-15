@@ -1,5 +1,35 @@
-import { saveJob, analyzeJob, getResumes, matchResume, generateCoverLetter, createApplication } from "../services/api.js";
+import {
+    saveJob,
+    analyzeJob,
+    getResumes,
+    matchResume,
+    generateCoverLetter,
+    createApplication,
+    login,
+    logout,
+    getUserProfile,
+    getTokens,
+} from "../services/api.js";
 
+// DOM Elements: Auth
+const initialLoading = document.getElementById("initialLoading");
+const authSection = document.getElementById("authSection");
+const authError = document.getElementById("authError");
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const togglePasswordBtn = document.getElementById("togglePasswordBtn");
+const togglePasswordIcon = document.getElementById("togglePasswordIcon");
+const loginSubmitBtn = document.getElementById("loginSubmitBtn");
+
+// DOM Elements: Account
+const mainSection = document.getElementById("mainSection");
+const userAvatar = document.getElementById("userAvatar");
+const userName = document.getElementById("userName");
+const userEmail = document.getElementById("userEmail");
+const logoutBtn = document.getElementById("logoutBtn");
+
+// DOM Elements: Job Tools
 const status = document.getElementById("status");
 const jobTitle = document.getElementById("jobTitle");
 const company = document.getElementById("company");
@@ -17,6 +47,7 @@ const matchResultContainer = document.getElementById("matchResult");
 const coverLetterResultContainer = document.getElementById("coverLetterResult");
 
 let currentJob = null;
+let currentCoverLetterId = null;
 
 const recognizedPageTypes = [
     "linkedin_job",
@@ -58,6 +89,140 @@ function hasValidJobData(job) {
         job.jobUrl?.trim()
     );
 }
+
+// =====================================================
+// AUTH & VIEW SWITCHING
+// =====================================================
+
+function showAuthView(errorMessage = "") {
+    initialLoading.style.display = "none";
+    mainSection.style.display = "none";
+    authSection.style.display = "block";
+
+    loginSubmitBtn.disabled = false;
+    loginSubmitBtn.textContent = "Log In";
+
+    if (errorMessage) {
+        authError.textContent = errorMessage;
+        authError.style.display = "block";
+    } else {
+        authError.textContent = "";
+        authError.style.display = "none";
+    }
+}
+
+function showMainView(user) {
+    initialLoading.style.display = "none";
+    authSection.style.display = "none";
+    mainSection.style.display = "block";
+
+    const displayName = user?.fullName || user?.username || "CareerOS User";
+    userName.textContent = displayName;
+    userEmail.textContent = user?.email || "";
+    userAvatar.textContent = (displayName[0] || "U").toUpperCase();
+    logoutBtn.disabled = false;
+    logoutBtn.textContent = "Log Out";
+}
+
+function showAuthError(message) {
+    authError.textContent = message;
+    authError.style.display = "block";
+}
+
+// Toggle password visibility
+togglePasswordBtn?.addEventListener("click", () => {
+    if (loginPassword.type === "password") {
+        loginPassword.type = "text";
+        togglePasswordIcon.textContent = "🙈";
+    } else {
+        loginPassword.type = "password";
+        togglePasswordIcon.textContent = "👁";
+    }
+});
+
+// Login form submission
+loginForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value.trim();
+
+    if (!email || !password) {
+        showAuthError("Email and password are required.");
+        return;
+    }
+
+    loginSubmitBtn.disabled = true;
+    loginSubmitBtn.textContent = "Logging in...";
+    authError.style.display = "none";
+
+    try {
+        await login(email, password);
+        const profile = await getUserProfile();
+        showMainView(profile);
+        await loadJob();
+    } catch (error) {
+        console.error("CareerOS popup login error:", error);
+        loginSubmitBtn.disabled = false;
+        loginSubmitBtn.textContent = "Log In";
+
+        if (error.status === 401 || error.status === 400) {
+            showAuthError("Invalid email or password.");
+        } else if (error.status === 0) {
+            showAuthError("Unable to connect to CareerOS server.");
+        } else {
+            showAuthError(error.message || "Login failed. Please try again.");
+        }
+    }
+});
+
+// Logout action
+logoutBtn?.addEventListener("click", async () => {
+    logoutBtn.disabled = true;
+    logoutBtn.textContent = "Logging out...";
+
+    try {
+        await logout();
+    } catch (error) {
+        console.error("CareerOS logout error:", error);
+    } finally {
+        loginPassword.value = "";
+        showAuthView();
+    }
+});
+
+// Check existing session
+async function checkSession() {
+    try {
+        const tokens = await getTokens();
+
+        if (!tokens.accessToken && !tokens.refreshToken) {
+            showAuthView();
+            return;
+        }
+
+        const profile = await getUserProfile();
+        showMainView(profile);
+        await loadJob();
+    } catch (error) {
+        console.error("CareerOS session verification error:", error);
+
+        if (error.status === 401 || error.status === 403) {
+            showAuthView("Your session has expired. Please log in again.");
+        } else {
+            // Network failure or temporary server issue — do not logout
+            showMainView({ fullName: "CareerOS User", email: "" });
+            status.textContent = error.status === 0
+                ? "Offline / Unable to connect to server."
+                : "Unable to verify profile with server.";
+            await loadJob();
+        }
+    }
+}
+
+// =====================================================
+// JOB DATA & PAGE INTERACTIONS
+// =====================================================
 
 function sendPageData(tabId) {
     return new Promise((resolve, reject) => {
@@ -170,9 +335,7 @@ async function requestPageData(tabId) {
 }
 
 async function loadJob() {
-
     try {
-
         const [tab] = await chrome.tabs.query({
             active: true,
             currentWindow: true,
@@ -228,9 +391,7 @@ async function loadJob() {
         ) ? "Job detected." : "No job detected.";
 
     } catch (error) {
-
-        console.error(error);
-
+        console.error("CareerOS load job error:", error);
         status.textContent =
             "This page cannot be accessed by CareerOS.";
     }
@@ -256,7 +417,8 @@ async function handleSaveJob() {
         console.error("CareerOS save job failed:", error);
 
         if (error.status === 401 || error.status === 403) {
-            status.textContent = "Please log in to CareerOS.";
+            status.textContent = "Your session has expired. Please log in again.";
+            showAuthView("Your session has expired. Please log in again.");
         } else if (error.status === 409) {
             status.textContent = "Job already saved.";
         } else {
@@ -305,7 +467,8 @@ async function handleAnalyzeJob() {
         console.error("CareerOS analyze job failed:", error);
 
         if (error.status === 401 || error.status === 403) {
-            status.textContent = "Please log in to CareerOS.";
+            status.textContent = "Your session has expired. Please log in again.";
+            showAuthView("Your session has expired. Please log in again.");
         } else {
             status.textContent =
                 "Unable to analyze this job. Please try again.";
@@ -347,7 +510,12 @@ async function loadResumes() {
         generateCoverLetterButton.disabled = false;
     } catch (error) {
         console.error("Failed to load resumes:", error);
-        resumeSelect.innerHTML = "<option value=''>Error loading resumes</option>";
+        if (error.status === 401 || error.status === 403) {
+            status.textContent = "Your session has expired. Please log in again.";
+            showAuthView("Your session has expired. Please log in again.");
+        } else {
+            resumeSelect.innerHTML = "<option value=''>Error loading resumes</option>";
+        }
     }
 }
 
@@ -407,7 +575,8 @@ async function handleMatchResume() {
         if (error.status === 400) {
             status.textContent = "Please analyze the job first.";
         } else if (error.status === 401 || error.status === 403) {
-            status.textContent = "Please log in to CareerOS.";
+            status.textContent = "Your session has expired. Please log in again.";
+            showAuthView("Your session has expired. Please log in again.");
         } else {
             status.textContent = error.message || "Failed to match resume.";
         }
@@ -416,8 +585,6 @@ async function handleMatchResume() {
         generateCoverLetterButton.disabled = false;
     }
 }
-
-let currentCoverLetterId = null;
 
 async function handleGenerateCoverLetter() {
     const resumeId = resumeSelect.value;
@@ -472,6 +639,9 @@ async function handleGenerateCoverLetter() {
                 console.error("Failed to create application", err);
                 applyBtn.textContent = "Failed to save";
                 applyBtn.disabled = false;
+                if (err.status === 401 || err.status === 403) {
+                    showAuthView("Your session has expired. Please log in again.");
+                }
             }
         };
         actionsDiv.appendChild(applyBtn);
@@ -482,7 +652,8 @@ async function handleGenerateCoverLetter() {
     } catch (error) {
         console.error("Cover letter generation failed:", error);
         if (error.status === 401 || error.status === 403) {
-            status.textContent = "Please log in to CareerOS.";
+            status.textContent = "Your session has expired. Please log in again.";
+            showAuthView("Your session has expired. Please log in again.");
         } else {
             status.textContent = error.message || "Failed to generate cover letter.";
         }
@@ -492,9 +663,11 @@ async function handleGenerateCoverLetter() {
     }
 }
 
-saveJobButton.addEventListener("click", handleSaveJob);
-analyzeJobButton.addEventListener("click", handleAnalyzeJob);
-matchResumeButton.addEventListener("click", handleMatchResume);
-generateCoverLetterButton.addEventListener("click", handleGenerateCoverLetter);
+// Attach event listeners
+saveJobButton?.addEventListener("click", handleSaveJob);
+analyzeJobButton?.addEventListener("click", handleAnalyzeJob);
+matchResumeButton?.addEventListener("click", handleMatchResume);
+generateCoverLetterButton?.addEventListener("click", handleGenerateCoverLetter);
 
-loadJob(); 
+// Start by checking authentication state
+checkSession();

@@ -64,7 +64,9 @@ const refreshAccessToken = async () => {
   }
 
   if (!response.ok) {
-    await clearTokens();
+    if (response.status === 401 || response.status === 403) {
+      await clearTokens();
+    }
     throw createApiError(
       response.status,
       responseBody.message || "Please log in to CareerOS."
@@ -73,7 +75,6 @@ const refreshAccessToken = async () => {
 
   const newAccessToken = responseBody?.data?.accessToken;
   if (!newAccessToken) {
-    await clearTokens();
     throw createApiError(500, "Invalid refresh response from CareerOS.");
   }
 
@@ -424,6 +425,19 @@ const getUserProfile = async () => {
   return responseBody.data || responseBody;
 };
 
+const logout = async () => {
+  try {
+    await authenticatedFetch(`${API_BASE_URL}/users/logout`, {
+      method: "POST",
+    });
+  } catch (error) {
+    console.error("CareerOS logout API call failed (proceeding to clear tokens):", error);
+  } finally {
+    await clearTokens();
+  }
+  return true;
+};
+
 export {
   saveJob,
   analyzeJob,
@@ -435,10 +449,12 @@ export {
   updateApplicationStatus,
   getUserProfile,
   login,
+  logout,
   getTokens,
   setTokens,
   clearTokens,
   refreshAccessToken,
   requestTokenRefresh,
 };
+
 

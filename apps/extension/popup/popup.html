@@ -11,64 +11,126 @@
 
     <div class="container">
 
-        <h1>CareerOS</h1>
-
-        <div id="status">
-            Reading job...
+        <!-- INITIAL LOADING -->
+        <div id="initialLoading" class="initial-loading">
+            <p>Loading CareerOS...</p>
         </div>
 
-        <div id="job">
-            <p>
-                <strong>Title:</strong>
-                <span id="jobTitle">-</span>
-            </p>
-
-            <p>
-                <strong>Company:</strong>
-                <span id="company">-</span>
-            </p>
-
-            <p>
-                <strong>Location:</strong>
-                <span id="location">-</span>
-            </p>
-
-            <p>
-                <strong>Description:</strong>
-                <span id="description">-</span>
-            </p>
-
-            <p>
-                <strong>URL:</strong>
-                <span id="jobUrl">-</span>
-            </p>
-        </div>
-
-        <div class="actions">
-            <button id="saveJob" disabled>
-                Save Job
-            </button>
-
-            <button id="analyzeJob" disabled>
-                Analyze Job
-            </button>
-        </div>
-
-        <div id="analysis" class="analysis"></div>
-
-        <div id="resumeSection" class="resume-section" style="display:none">
-            <label for="resumeSelect">Select Resume:</label>
-            <select id="resumeSelect">
-                <option value="">Loading resumes...</option>
-            </select>
-            <div class="actions">
-                <button id="matchResume" disabled>Match Resume</button>
-                <button id="generateCoverLetter" disabled>Generate Cover Letter</button>
+        <!-- AUTH VIEW: LOGIN FORM -->
+        <div id="authSection" class="auth-section" style="display:none;">
+            <div class="brand-header">
+                <div class="brand-logo">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="brand-title">CareerOS</h1>
+                    <p class="brand-subtitle">Sign in to your account</p>
+                </div>
             </div>
+
+            <div id="authError" class="auth-error-banner" style="display:none;"></div>
+
+            <form id="loginForm" class="login-form">
+                <div class="input-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="name@example.com" required autocomplete="email" />
+                </div>
+
+                <div class="input-group">
+                    <label for="loginPassword">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" />
+                        <button type="button" id="togglePasswordBtn" class="toggle-password-btn" title="Toggle password visibility" aria-label="Toggle password visibility">
+                            <span id="togglePasswordIcon">👁</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="loginSubmitBtn" class="btn-primary">
+                    Log In
+                </button>
+            </form>
         </div>
 
-        <div id="matchResult" class="match-result" style="display:none"></div>
-        <div id="coverLetterResult" class="cover-letter-result" style="display:none"></div>
+        <!-- MAIN VIEW: ACCOUNT BAR + JOB TOOLS -->
+        <div id="mainSection" class="main-section" style="display:none;">
+            <!-- Account Bar -->
+            <div class="account-bar">
+                <div class="account-user-info">
+                    <div class="account-avatar" id="userAvatar">U</div>
+                    <div class="account-details">
+                        <span class="user-name" id="userName">User</span>
+                        <span class="user-email" id="userEmail">user@example.com</span>
+                    </div>
+                </div>
+                <div class="account-actions">
+                    <span class="status-badge-active">Logged in</span>
+                    <button id="logoutBtn" class="btn-logout" type="button" title="Log out of CareerOS">Log Out</button>
+                </div>
+            </div>
+
+            <div class="content-divider"></div>
+
+            <div id="status">
+                Reading job...
+            </div>
+
+            <div id="job">
+                <p>
+                    <strong>Title:</strong>
+                    <span id="jobTitle">-</span>
+                </p>
+
+                <p>
+                    <strong>Company:</strong>
+                    <span id="company">-</span>
+                </p>
+
+                <p>
+                    <strong>Location:</strong>
+                    <span id="location">-</span>
+                </p>
+
+                <p>
+                    <strong>Description:</strong>
+                    <span id="description">-</span>
+                </p>
+
+                <p>
+                    <strong>URL:</strong>
+                    <span id="jobUrl">-</span>
+                </p>
+            </div>
+
+            <div class="actions">
+                <button id="saveJob" disabled>
+                    Save Job
+                </button>
+
+                <button id="analyzeJob" disabled>
+                    Analyze Job
+                </button>
+            </div>
+
+            <div id="analysis" class="analysis"></div>
+
+            <div id="resumeSection" class="resume-section" style="display:none">
+                <label for="resumeSelect">Select Resume:</label>
+                <select id="resumeSelect">
+                    <option value="">Loading resumes...</option>
+                </select>
+                <div class="actions">
+                    <button id="matchResume" disabled>Match Resume</button>
+                    <button id="generateCoverLetter" disabled>Generate Cover Letter</button>
+                </div>
+            </div>
+
+            <div id="matchResult" class="match-result" style="display:none"></div>
+            <div id="coverLetterResult" class="cover-letter-result" style="display:none"></div>
+        </div>
 
     </div>
 

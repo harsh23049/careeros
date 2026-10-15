@@ -48,6 +48,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "getUserProfile":
           result = await api.getUserProfile();
           break;
+        case "login":
+          result = await api.login(payload?.email, payload?.password);
+          break;
+        case "logout":
+          result = await api.logout();
+          break;
         case "getAuthStatus": {
           const tokens = await api.getTokens();
           result = {

@@ -888,6 +888,9 @@ function initCareerOSAssistant() {
             genCoverBtn.disabled = false;
         } catch (error) {
             console.error("CareerOS assistant resume fetch error:", error);
+            if (error.status === 401 || error.status === 403) {
+                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+            }
             resumeSelect.innerHTML = "<option value=''>Failed to load resumes</option>";
             matchResumeBtn.disabled = true;
             genCoverBtn.disabled = true;
@@ -931,7 +934,7 @@ function initCareerOSAssistant() {
             saveJobBtn.textContent = "Save Job";
 
             if (error.status === 401 || error.status === 403) {
-                showBanner("Please log in via the CareerOS extension popup.", "warning");
+                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
             } else if (error.status === 409) {
                 showBanner("Job is already saved in CareerOS.", "info");
                 saveJobBtn.textContent = "Saved ✓";
@@ -1023,7 +1026,7 @@ function initCareerOSAssistant() {
                 analyzeJobBtn.disabled = false;
                 analyzeJobBtn.textContent = "Analyze Job";
                 if (saveErr.status === 401 || saveErr.status === 403) {
-                    showBanner("Please log in via the CareerOS extension popup.", "warning");
+                    showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
                 } else if (saveErr.status === 409) {
                     // Already saved, proceed with analysis if we can find job or notify
                     showBanner("Job is already saved. Click Analyze Job again.", "info");
@@ -1055,7 +1058,7 @@ function initCareerOSAssistant() {
         } catch (error) {
             console.error("CareerOS assistant analyze error:", error);
             if (error.status === 401 || error.status === 403) {
-                showBanner("Please log in via the CareerOS extension popup.", "warning");
+                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
             } else {
                 showBanner(error.message || "Failed to analyze job.", "error");
             }
@@ -1149,7 +1152,7 @@ function initCareerOSAssistant() {
             if (error.status === 400) {
                 showBanner("Please analyze the job first before matching.", "warning");
             } else if (error.status === 401 || error.status === 403) {
-                showBanner("Please log in via the CareerOS extension popup.", "warning");
+                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
             } else {
                 showBanner(error.message || "Failed to match resume.", "error");
             }
@@ -1199,7 +1202,7 @@ function initCareerOSAssistant() {
         } catch (error) {
             console.error("CareerOS assistant cover letter error:", error);
             if (error.status === 401 || error.status === 403) {
-                showBanner("Please log in via the CareerOS extension popup.", "warning");
+                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
             } else {
                 showBanner(error.message || "Failed to generate cover letter.", "error");
             }
@@ -1247,7 +1250,11 @@ function initCareerOSAssistant() {
             console.error("CareerOS assistant create application error:", error);
             addAppBtn.disabled = false;
             addAppBtn.textContent = "Add to Applications";
-            showBanner(error.message || "Failed to create application.", "error");
+            if (error.status === 401 || error.status === 403) {
+                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+            } else {
+                showBanner(error.message || "Failed to create application.", "error");
+            }
         } finally {
             isCreatingApp = false;
         }
