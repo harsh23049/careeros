@@ -349,6 +349,81 @@ const createApplication = async (jobId, resumeId, coverLetterId) => {
   return responseBody.data || responseBody;
 };
 
+const getApplications = async (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/applications${query}`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not fetch applications."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
+const updateApplicationStatus = async (id, status, notes) => {
+  if (!id || typeof id !== "string" || !id.trim()) {
+    throw createApiError(400, "Application ID is required.");
+  }
+
+  if (!status || typeof status !== "string" || !status.trim()) {
+    throw createApiError(400, "Application status is required.");
+  }
+
+  const payload = {
+    status: status.trim(),
+  };
+
+  if (notes !== undefined) {
+    payload.notes = notes;
+  }
+
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/applications/${encodeURIComponent(id.trim())}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not update application status."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
+const getUserProfile = async () => {
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/users/profile`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not fetch user profile."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
 export {
   saveJob,
   analyzeJob,
@@ -356,6 +431,9 @@ export {
   matchResume,
   generateCoverLetter,
   createApplication,
+  getApplications,
+  updateApplicationStatus,
+  getUserProfile,
   login,
   getTokens,
   setTokens,
@@ -363,3 +441,4 @@ export {
   refreshAccessToken,
   requestTokenRefresh,
 };
+
