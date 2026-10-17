@@ -1,7 +1,10 @@
 import Card, { CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import { useAuth } from '../features/auth';
 
 export function Settings() {
+  const { user } = useAuth();
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
@@ -23,7 +26,8 @@ export function Settings() {
             </label>
             <input
               type="text"
-              defaultValue="Demo User"
+              defaultValue={user?.fullName || ''}
+              key={user?.fullName}
               className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             />
           </div>
@@ -33,8 +37,10 @@ export function Settings() {
             </label>
             <input
               type="email"
-              defaultValue="user@careeros.local"
-              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+              defaultValue={user?.email || ''}
+              key={user?.email}
+              disabled
+              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed"
             />
           </div>
         </div>
