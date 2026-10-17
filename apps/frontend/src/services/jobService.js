@@ -1,3 +1,7 @@
+/**
+ * Job Service
+ * Provides CRUD, AI analysis, resume matching, and cover letter endpoints for jobs.
+ */
 import apiClient from './apiClient';
 
 export const jobService = {
