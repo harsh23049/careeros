@@ -13,6 +13,7 @@ import ForgotPassword from '../pages/ForgotPassword';
 import ResetPassword from '../pages/ResetPassword';
 import Settings from '../pages/Settings';
 import NotFound from '../pages/NotFound';
+import { ProtectedRoute, PublicOnlyRoute } from '../features/auth';
 
 export const router = createBrowserRouter([
   {
@@ -20,24 +21,34 @@ export const router = createBrowserRouter([
     element: <Navigate to="/dashboard" replace />,
   },
   {
-    element: <AuthLayout />,
+    element: <PublicOnlyRoute />,
     children: [
-      { path: 'login', element: <Login /> },
-      { path: 'register', element: <Register /> },
-      { path: 'forgot-password', element: <ForgotPassword /> },
-      { path: 'reset-password', element: <ResetPassword /> },
+      {
+        element: <AuthLayout />,
+        children: [
+          { path: 'login', element: <Login /> },
+          { path: 'register', element: <Register /> },
+          { path: 'forgot-password', element: <ForgotPassword /> },
+          { path: 'reset-password', element: <ResetPassword /> },
+        ],
+      },
     ],
   },
   {
-    element: <DashboardLayout />,
+    element: <ProtectedRoute />,
     children: [
-      { path: 'dashboard', element: <Dashboard /> },
-      { path: 'jobs', element: <Jobs /> },
-      { path: 'jobs/:id', element: <JobDetails /> },
-      { path: 'applications', element: <Applications /> },
-      { path: 'resumes', element: <Resumes /> },
-      { path: 'ai-tools', element: <AITools /> },
-      { path: 'settings', element: <Settings /> },
+      {
+        element: <DashboardLayout />,
+        children: [
+          { path: 'dashboard', element: <Dashboard /> },
+          { path: 'jobs', element: <Jobs /> },
+          { path: 'jobs/:id', element: <JobDetails /> },
+          { path: 'applications', element: <Applications /> },
+          { path: 'resumes', element: <Resumes /> },
+          { path: 'ai-tools', element: <AITools /> },
+          { path: 'settings', element: <Settings /> },
+        ],
+      },
     ],
   },
   {
