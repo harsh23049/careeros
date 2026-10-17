@@ -1,3 +1,7 @@
+/**
+ * Authentication Service
+ * Interacts with backend user routes (/api/v1/users) for auth, profile, and account management.
+ */
 import apiClient from './apiClient';
 
 export const authService = {
