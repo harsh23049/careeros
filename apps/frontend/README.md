@@ -1,16 +1,45 @@
-# React + Vite
+# CareerOS — Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI-powered job application management platform frontend built with React, Vite, Tailwind CSS, React Router, and TanStack Query.
 
-Currently, two official plugins are available:
+## Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```
+src/
+├── app/          # Router & Global Providers
+├── assets/       # Static assets & icons
+├── components/   # UI Primitives, Sidebar, Header, and Feature Components
+├── features/     # Feature entry points (auth, jobs, applications, resumes, ai)
+├── hooks/        # Custom React hooks (e.g. useDocumentTitle)
+├── layouts/      # DashboardLayout and AuthLayout shells
+├── pages/        # Route page views (Dashboard, Jobs, Details, Pipeline, AI, Auth)
+├── services/     # Axios API services connected to backend endpoints
+└── utils/        # Class utility (cn) and formatters
+```
 
-## React Compiler
+## Available Routes
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `/dashboard` — Main overview & pipeline metrics
+- `/jobs` — Saved jobs and search listings
+- `/jobs/:id` — Individual job details & AI match
+- `/applications` — Kanban / stage pipeline tracker
+- `/resumes` — Resume documents manager
+- `/ai-tools` — AI analysis, matching, and cover letter generator
+- `/settings` — Profile and preferences
+- `/login` — User authentication
+- `/register` — Account registration
+- `/forgot-password` — Password reset request
+- `/reset-password` — Password reset confirmation
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev
+```
+
+## Production Build
+
+```bash
+npm run build
+npm run preview
+```
