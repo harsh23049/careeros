@@ -1,3 +1,7 @@
+/**
+ * AI Service
+ * Handles AI analysis, cover letter generation & CRUD, and AI operation histories.
+ */
 import apiClient from './apiClient';
 
 export const aiService = {
