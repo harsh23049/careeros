@@ -1,7 +1,9 @@
 import userRepository from "../repositories/user.repository.js";
 import ApiError from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import uploadToCloudinary from "../utils/cloudinaryUpload.js";
+import { sendPasswordResetEmail } from "./email.service.js";
 
 // =====================================================
 // Helper
@@ -370,6 +372,85 @@ const deleteAccount = async (userId) => {
     return true;
 };
 
+// =====================================================
+// PASSWORD RESET
+// =====================================================
+
+const forgotPassword = async (email) => {
+    if (!email || !email.trim()) {
+        throw new ApiError(400, "Email address is required");
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await userRepository.findByEmail(normalizedEmail);
+
+    if (user) {
+        // Generate unpredictable 32-byte token
+        const resetToken = crypto.randomBytes(32).toString("hex");
+
+        // Hash token before storing in MongoDB
+        const hashedToken = crypto
+            .createHash("sha256")
+            .update(resetToken)
+            .digest("hex");
+
+        // 15-minute expiry
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+        await userRepository.save(user);
+
+        // Build reset link using frontend URL
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+        const emailResult = await sendPasswordResetEmail(user.email, resetUrl);
+
+        return {
+            message: "If an account exists for this email, a password reset link has been sent.",
+            delivered: Boolean(emailResult.delivered),
+            devResetUrl: process.env.NODE_ENV !== "production" ? resetUrl : undefined,
+        };
+    }
+
+    // Always return generic message to prevent account enumeration
+    return {
+        message: "If an account exists for this email, a password reset link has been sent.",
+        delivered: false,
+    };
+};
+
+const resetPassword = async (plainToken, newPassword) => {
+    if (!plainToken || typeof plainToken !== "string" || !plainToken.trim()) {
+        throw new ApiError(400, "Reset token is required");
+    }
+
+    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+        throw new ApiError(400, "Password must be at least 6 characters long");
+    }
+
+    // Hash the plain token using SHA-256 to compare with stored hash
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(plainToken.trim())
+        .digest("hex");
+
+    const user = await userRepository.findByResetToken(hashedToken);
+
+    if (!user) {
+        throw new ApiError(400, "Password reset token is invalid or has expired");
+    }
+
+    // Set new password (pre-save hook will hash with bcrypt)
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpiry = null;
+    user.refreshToken = null; // Revoke existing refresh tokens
+
+    await userRepository.save(user);
+
+    return "Password has been reset successfully. You may now log in.";
+};
 
 // =====================================================
 // EXPORTS
@@ -385,4 +466,6 @@ export {
     changePassword,
     updateAvatar,
     deleteAccount,
+    forgotPassword,
+    resetPassword,
 };
