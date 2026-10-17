@@ -1,3 +1,7 @@
+/**
+ * Application Service
+ * Manages user job applications across pipeline stages (saved, applied, interview, offer).
+ */
 import apiClient from './apiClient';
 
 export const applicationService = {
