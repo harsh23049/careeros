@@ -19,10 +19,34 @@ const app = express();
 // Security Middleware
 app.use(helmet());
 
-// Enable CORS
+// Enable CORS with credential support
+const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+    : [
+          "http://localhost:5173",
+          "http://localhost:4173",
+          "http://127.0.0.1:5173",
+          "http://127.0.0.1:4173",
+          "http://localhost:3000",
+      ];
+
 app.use(
     cors({
-        origin: process.env.CORS_ORIGIN || "*",
+        origin: (origin, callback) => {
+            // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+            if (!origin) return callback(null, true);
+
+            // Allow matching configured origins, chrome extensions, or development environments
+            if (
+                allowedOrigins.includes(origin) ||
+                origin.startsWith("chrome-extension://") ||
+                process.env.NODE_ENV !== "production"
+            ) {
+                return callback(null, true);
+            }
+
+            return callback(new Error("Blocked by CORS policy"));
+        },
         credentials: true,
     })
 );
