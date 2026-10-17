@@ -1,3 +1,7 @@
+/**
+ * Resume Service
+ * Manages user resumes and default resume selections for automated AI matching.
+ */
 import apiClient from './apiClient';
 
 export const resumeService = {
