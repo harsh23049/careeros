@@ -6,8 +6,16 @@ const errorHandler = (err, req, res, next) => {
     console.error(err);
     console.error(err.stack);
     console.error("==========================");
-    // If the error isn't an ApiError, create one
-    if (!(err instanceof ApiError)) {
+    // Map known Mongoose errors to appropriate client status codes
+    if (err.name === "ValidationError") {
+        const message = Object.values(err.errors || {})
+            .map((val) => val.message)
+            .join(", ");
+        err = new ApiError(400, message || "Validation Error", Object.values(err.errors || {}));
+    } else if (err.code === 11000) {
+        const field = Object.keys(err.keyValue || {})[0] || "Field";
+        err = new ApiError(409, `${field} is already registered`);
+    } else if (!(err instanceof ApiError)) {
         err = new ApiError(
             500,
             err.message || "Internal Server Error"
