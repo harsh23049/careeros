@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../features/auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,7 +13,9 @@ const queryClient = new QueryClient({
 export function Providers({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
