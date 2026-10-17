@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../features/auth';
 
 const routeTitles = {
   '/dashboard': 'Dashboard',
@@ -9,8 +10,16 @@ const routeTitles = {
   '/settings': 'Account Settings',
 };
 
+const getInitials = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 export function Header({ onMenuClick }) {
   const location = useLocation();
+  const { user } = useAuth();
 
   const getTitle = () => {
     if (location.pathname.startsWith('/jobs/')) {
@@ -44,9 +53,17 @@ export function Header({ onMenuClick }) {
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           AI Engine Ready
         </div>
-        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold flex items-center justify-center text-xs border border-indigo-200 dark:border-indigo-700">
-          U
-        </div>
+        {user?.avatar?.url ? (
+          <img
+            src={user.avatar.url}
+            alt={user.fullName || 'User'}
+            className="w-8 h-8 rounded-full object-cover border border-indigo-200 dark:border-indigo-700"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold flex items-center justify-center text-xs border border-indigo-200 dark:border-indigo-700">
+            {getInitials(user?.fullName || user?.username || 'U')}
+          </div>
+        )}
       </div>
     </header>
   );
