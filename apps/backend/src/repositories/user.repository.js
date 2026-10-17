@@ -14,6 +14,13 @@ class userRepository {
         return await User.findById(userId);
     }
 
+    async findByResetToken(hashedToken) {
+        return await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpiry: { $gt: new Date() },
+        });
+    }
+
     async create(userData) {
         return await User.create(userData);
     }
