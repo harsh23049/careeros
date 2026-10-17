@@ -1,4 +1,12 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../features/auth';
+
+const getInitials = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 const navItems = [
   {
@@ -60,6 +68,8 @@ const navItems = [
 ];
 
 export function Sidebar({ isOpen, onClose }) {
+  const { user, logout } = useAuth();
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -136,21 +146,40 @@ export function Sidebar({ isOpen, onClose }) {
           ))}
         </nav>
 
-        {/* User preview / footer */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+        {/* User preview & Logout footer */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
           <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
-            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
-              JS
-            </div>
+            {user?.avatar?.url ? (
+              <img
+                src={user.avatar.url}
+                alt={user.fullName || 'User'}
+                className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-xs font-bold">
+                {getInitials(user?.fullName || user?.username || 'U')}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate">
-                Job Seeker
+              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                {user?.fullName || user?.username || 'CareerOS User'}
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                seeker@careeros.local
+                {user?.email || ''}
               </p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent hover:border-rose-200 dark:hover:border-rose-900/60 transition-colors cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
+          </button>
         </div>
       </aside>
     </>
@@ -158,3 +187,4 @@ export function Sidebar({ isOpen, onClose }) {
 }
 
 export default Sidebar;
+
