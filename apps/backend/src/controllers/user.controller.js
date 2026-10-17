@@ -16,17 +16,34 @@ const registerUser = asyncHandler(async (req, res) => {
         );
 });
  
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+};
+
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await userService.loginUser(email, password);
+    const authData = await userService.loginUser(email, password);
+
+    // Set secure HttpOnly cookies for browser clients while keeping authData in JSON for extension/API clients
+    res.cookie("accessToken", authData.accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie("refreshToken", authData.refreshToken, {
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                user,
+                authData,
                 "User logged in successfully"
             )
         );
@@ -36,8 +53,8 @@ const logOutUser = asyncHandler(async (req, res) => {
 
     await userService.logoutUser(req.user._id);
 
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
 
     return res
         .status(200)
@@ -93,6 +110,11 @@ const refreshAccessToken = asyncHandler(
                 refreshToken
             );
 
+        res.cookie("accessToken", accessToken, {
+            ...cookieOptions,
+            maxAge: 15 * 60 * 1000,
+        });
+
         return res
             .status(200)
             .json(
@@ -104,6 +126,39 @@ const refreshAccessToken = asyncHandler(
             );
     }
 );
+
+const forgotPasswordUser = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const result = await userService.forgotPassword(email);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    delivered: Boolean(result?.delivered),
+                    devResetUrl: result?.devResetUrl || null,
+                },
+                typeof result === "string" ? result : (result?.message || "If an account exists for this email, a password reset link has been sent.")
+            )
+        );
+});
+
+const resetPasswordUser = asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+    const message = await userService.resetPassword(token, newPassword);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                message
+            )
+        );
+});
 
 const changePassword = asyncHandler(async (req, res) => {
 
@@ -162,4 +217,16 @@ const deleteAccount = asyncHandler(async (req, res) => {
         );
 });
 
-export { registerUser, loginUser, logOutUser, me, updateUserInfo, refreshAccessToken, changePassword, updateAvatar, deleteAccount };
+export {
+    registerUser,
+    loginUser,
+    logOutUser,
+    me,
+    updateUserInfo,
+    refreshAccessToken,
+    changePassword,
+    updateAvatar,
+    deleteAccount,
+    forgotPasswordUser,
+    resetPasswordUser,
+};
