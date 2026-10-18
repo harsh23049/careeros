@@ -1,53 +1,127 @@
 /**
  * Email Service
  * Handles transactional email notifications, including password reset links.
+ * Supports Gmail (App Passwords) and custom SMTP providers with STARTTLS.
  */
 import nodemailer from "nodemailer";
 
-export const sendPasswordResetEmail = async (toEmail, resetUrl) => {
-  const isSmtpConfigured = Boolean(
-    (process.env.SMTP_HOST || process.env.SMTP_SERVICE) &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS
-  );
+/**
+ * Clean and format SMTP credentials securely.
+ * Strips formatting spaces from Google App Passwords (e.g. 'xxxx xxxx xxxx xxxx' -> 'xxxxxxxxxxxxxxxx').
+ */
+const getCleanSmtpConfig = () => {
+  const service = process.env.SMTP_SERVICE?.trim();
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  // Strip spaces often present in Google App Passwords
+  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.trim().replace(/\s+/g, "") : "";
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const isSecure = port === 465;
 
-  if (!isSmtpConfigured) {
+  const isConfigured = Boolean((host || service) && user && pass);
+
+  return {
+    isConfigured,
+    service,
+    host,
+    port,
+    isSecure,
+    user,
+    pass,
+    from: process.env.EMAIL_FROM?.trim() || (user ? `"CareerOS" <${user}>` : '"CareerOS" <no-reply@careeros.app>'),
+  };
+};
+
+/**
+ * Creates a Nodemailer transport instance based on active configuration.
+ */
+export const createSmtpTransport = () => {
+  const config = getCleanSmtpConfig();
+
+  if (!config.isConfigured) {
+    return null;
+  }
+
+  if (config.service) {
+    return nodemailer.createTransport({
+      service: config.service,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    });
+  }
+
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.isSecure,
+    auth: {
+      user: config.user,
+      pass: config.pass,
+    },
+    tls: {
+      rejectUnauthorized: process.env.NODE_ENV === "production",
+    },
+  });
+};
+
+/**
+ * Diagnostics helper: verifies SMTP connection without sending an email.
+ * Never logs or exposes credentials.
+ */
+export const verifySmtpConnection = async () => {
+  const config = getCleanSmtpConfig();
+  if (!config.isConfigured) {
+    return {
+      configured: false,
+      message: "SMTP is not configured (SMTP_USER / SMTP_PASS missing). Running in development simulation mode.",
+    };
+  }
+
+  try {
+    const transporter = createSmtpTransport();
+    await transporter.verify();
+    return {
+      configured: true,
+      verified: true,
+      message: `SMTP connection established successfully (${config.service || config.host}:${config.port}).`,
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      verified: false,
+      error: error.message,
+      isAuthError: error.message?.includes("535") || error.message?.toLowerCase().includes("badcredentials"),
+    };
+  }
+};
+
+/**
+ * Dispatches a password reset email via configured SMTP, or falls back to console in development.
+ */
+export const sendPasswordResetEmail = async (toEmail, resetUrl) => {
+  const config = getCleanSmtpConfig();
+
+  if (!config.isConfigured) {
     console.log("==================================================");
     console.log("📧 [Email Service - Development Notice]");
     console.log(`To: ${toEmail}`);
     console.log(`Subject: Password Reset Request for CareerOS`);
     console.log(`Reset URL: ${resetUrl}`);
     console.log("==================================================");
-    console.log("ℹ️  To deliver real emails to inboxes, add SMTP credentials to apps/backend/.env:");
+    console.log("ℹ️  SMTP is not configured in apps/backend/.env.");
     console.log("   Option A (Gmail): SMTP_SERVICE=gmail, SMTP_USER=you@gmail.com, SMTP_PASS=app_password");
-    console.log("   Option B (Custom SMTP): SMTP_HOST=..., SMTP_PORT=587, SMTP_USER=..., SMTP_PASS=...");
+    console.log("   Option B (Custom SMTP): SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=..., SMTP_PASS=...");
     console.log("==================================================");
-    return { delivered: false, simulated: true, resetUrl };
+    return { delivered: false, simulated: true, configured: false, resetUrl };
   }
 
   try {
-    const transportConfig = process.env.SMTP_SERVICE
-      ? {
-          service: process.env.SMTP_SERVICE,
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        }
-      : {
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: Number(process.env.SMTP_PORT) === 465,
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        };
-
-    const transporter = nodemailer.createTransport(transportConfig);
+    const transporter = createSmtpTransport();
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `"CareerOS" <${process.env.SMTP_USER}>`,
+      from: config.from,
       to: toEmail,
       subject: "Reset your CareerOS password",
       text: `Hello,\n\nYou requested a password reset for your CareerOS account.\nPlease click the link below or paste it into your browser to set a new password:\n\n${resetUrl}\n\nThis link will expire in 15 minutes.\nIf you did not make this request, please ignore this email.\n\nBest,\nThe CareerOS Team`,
@@ -75,14 +149,27 @@ export const sendPasswordResetEmail = async (toEmail, resetUrl) => {
       `,
     });
 
-    console.log(`✅ Password reset email successfully dispatched to ${toEmail}`);
-    return { delivered: true, simulated: false, resetUrl };
+    console.log(`✅ [Email Service] Password reset email successfully dispatched to ${toEmail}`);
+    return { delivered: true, simulated: false, configured: true, resetUrl };
   } catch (error) {
-    console.error("❌ Failed to send password reset email via SMTP:", error.message);
-    return { delivered: false, simulated: false, error: error.message, resetUrl };
+    console.error("❌ [Email Service] Failed to send password reset email via SMTP:", error.message);
+    if (error.message?.includes("535") || error.message?.toLowerCase().includes("badcredentials")) {
+      console.error("💡 [Email Service Diagnostic] Google rejected credentials (535 BadCredentials).");
+      console.error("   Ensure 2-Step Verification is active on this Google Account and use a 16-character App Password from https://myaccount.google.com/apppasswords.");
+    }
+
+    return {
+      delivered: false,
+      simulated: false,
+      configured: true,
+      error: error.message,
+      resetUrl,
+    };
   }
 };
 
 export default {
+  createSmtpTransport,
+  verifySmtpConnection,
   sendPasswordResetEmail,
 };

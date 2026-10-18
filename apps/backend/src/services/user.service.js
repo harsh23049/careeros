@@ -409,6 +409,8 @@ const forgotPassword = async (email) => {
         return {
             message: "If an account exists for this email, a password reset link has been sent.",
             delivered: Boolean(emailResult.delivered),
+            smtpConfigured: Boolean(emailResult.configured),
+            smtpError: process.env.NODE_ENV !== "production" ? (emailResult.error || null) : null,
             devResetUrl: process.env.NODE_ENV !== "production" ? resetUrl : undefined,
         };
     }
@@ -417,6 +419,12 @@ const forgotPassword = async (email) => {
     return {
         message: "If an account exists for this email, a password reset link has been sent.",
         delivered: false,
+        smtpConfigured: Boolean(
+            (process.env.SMTP_HOST || process.env.SMTP_SERVICE) &&
+            process.env.SMTP_USER &&
+            process.env.SMTP_PASS
+        ),
+        devResetUrl: undefined,
     };
 };
 

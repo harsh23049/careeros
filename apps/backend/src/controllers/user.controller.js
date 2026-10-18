@@ -138,6 +138,8 @@ const forgotPasswordUser = asyncHandler(async (req, res) => {
                 200,
                 {
                     delivered: Boolean(result?.delivered),
+                    smtpConfigured: Boolean(result?.smtpConfigured),
+                    smtpError: result?.smtpError || null,
                     devResetUrl: result?.devResetUrl || null,
                 },
                 typeof result === "string" ? result : (result?.message || "If an account exists for this email, a password reset link has been sent.")
