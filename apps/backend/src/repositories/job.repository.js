@@ -1,4 +1,3 @@
-
 import Job from "../models/job.model.js";
 
 class JobRepository {
@@ -17,6 +16,21 @@ class JobRepository {
     // Find a job by ID
     async findById(jobId) {
         return await Job.findById(jobId);
+    }
+
+    // Find a job by exact URL
+    async findByUrl(jobUrl) {
+        if (!jobUrl) return null;
+        return await Job.findOne({ jobUrl: jobUrl.trim() });
+    }
+
+    // Find a job by company and title (case-insensitive)
+    async findByCompanyAndTitle(company, jobTitle) {
+        if (!company || !jobTitle) return null;
+        return await Job.findOne({
+            company: { $regex: new RegExp(`^${company.trim()}$`, "i") },
+            jobTitle: { $regex: new RegExp(`^${jobTitle.trim()}$`, "i") },
+        });
     }
 
     // Update a job

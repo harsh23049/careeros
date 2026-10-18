@@ -420,7 +420,10 @@ async function handleSaveJob() {
             status.textContent = "Your session has expired. Please log in again.";
             showAuthView("Your session has expired. Please log in again.");
         } else if (error.status === 409) {
-            status.textContent = "Job already saved.";
+            if (error.data?._id) {
+                currentJob._id = error.data._id;
+            }
+            status.textContent = "Job already saved in CareerOS.";
         } else {
             status.textContent =
                 "Unable to save job. Please try again.";

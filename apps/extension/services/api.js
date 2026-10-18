@@ -224,10 +224,12 @@ const saveJob = async (jobData) => {
   );
 
   if (!response.ok) {
-    throw createApiError(
+    const error = createApiError(
       response.status,
       responseBody.message || "CareerOS could not save the job."
     );
+    error.data = responseBody.data;
+    throw error;
   }
 
   return responseBody;

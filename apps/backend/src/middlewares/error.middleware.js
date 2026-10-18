@@ -26,6 +26,7 @@ const errorHandler = (err, req, res, next) => {
         success: err.success,
         statusCode: err.statusCode,
         message: err.message,
+        data: err.data || null,
         errors: err.errors,
         stack:
             process.env.NODE_ENV === "development"

@@ -936,6 +936,9 @@ function initCareerOSAssistant() {
             if (error.status === 401 || error.status === 403) {
                 showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
             } else if (error.status === 409) {
+                if (error.data?._id) {
+                    currentJobId = error.data._id;
+                }
                 showBanner("Job is already saved in CareerOS.", "info");
                 saveJobBtn.textContent = "Saved ✓";
                 loadResumes();
