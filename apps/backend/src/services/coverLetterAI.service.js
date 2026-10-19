@@ -12,11 +12,11 @@ const generateCoverLetter = async (
     userId
 ) => {
     // =====================================================
-    // 1. Fetch the job
+    // 1. Fetch the job belonging to the user
     // =====================================================
 
     const job =
-        await jobRepository.findById(jobId);
+        await jobRepository.findByIdAndUser(jobId, userId);
 
     if (!job) {
         throw new ApiError(
