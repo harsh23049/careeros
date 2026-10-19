@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const jobSchema = new mongoose.Schema(
     {
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: [true, "User ownership is required for saved jobs"],
+            index: true,
+        },
         company: {
             type: String,
             required: [true, "Company name is required"],
@@ -123,6 +129,9 @@ const jobSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+jobSchema.index({ user: 1, jobUrl: 1 });
+jobSchema.index({ user: 1, createdAt: -1 });
 
 const Job = mongoose.model(
     "Job",
