@@ -41,14 +41,21 @@ const createJob = async (userId, jobData) => {
     return job;
 };
 
-// Get all jobs
-const getJobs = async () => {
-    return await jobRepository.findAll();
+// Get all jobs for authenticated user
+const getJobs = async (userId) => {
+    if (!userId) {
+        throw new ApiError(401, "Authentication required to fetch jobs");
+    }
+    return await jobRepository.findByUser(userId);
 };
 
-// Get a single job
-const getJob = async (jobId) => {
-    const job = await jobRepository.findById(jobId);
+// Get a single job for authenticated user
+const getJob = async (jobId, userId) => {
+    if (!userId) {
+        throw new ApiError(401, "Authentication required to fetch job");
+    }
+
+    const job = await jobRepository.findByIdAndUser(jobId, userId);
 
     if (!job) {
         throw new ApiError(
