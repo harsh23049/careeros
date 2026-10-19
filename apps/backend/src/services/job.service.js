@@ -1,11 +1,18 @@
 import jobRepository from "../repositories/job.repository.js";
 import ApiError from "../utils/ApiError.js";
 
-// Create a new job with duplicate checking
-const createJob = async (jobData) => {
-    // 1. Check if job with exact URL already exists
+// Create a new job with user-scoped duplicate checking
+const createJob = async (userId, jobData) => {
+    if (!userId) {
+        throw new ApiError(401, "Authentication required to save jobs");
+    }
+
+    // 1. Check if job with exact URL already exists for THIS user
     if (jobData?.jobUrl?.trim()) {
-        const existingByUrl = await jobRepository.findByUrl(jobData.jobUrl.trim());
+        const existingByUrl = await jobRepository.findByUrlAndUser(
+            jobData.jobUrl.trim(),
+            userId
+        );
         if (existingByUrl) {
             const error = new ApiError(409, "Job is already saved in CareerOS");
             error.data = existingByUrl;
@@ -13,11 +20,12 @@ const createJob = async (jobData) => {
         }
     }
 
-    // 2. Check if job with same company and title already exists
+    // 2. Check if job with same company and title already exists for THIS user
     if (jobData?.company?.trim() && jobData?.jobTitle?.trim()) {
-        const existingByDetails = await jobRepository.findByCompanyAndTitle(
+        const existingByDetails = await jobRepository.findByCompanyAndTitleAndUser(
             jobData.company.trim(),
-            jobData.jobTitle.trim()
+            jobData.jobTitle.trim(),
+            userId
         );
         if (existingByDetails) {
             const error = new ApiError(409, "Job is already saved in CareerOS");
@@ -26,7 +34,10 @@ const createJob = async (jobData) => {
         }
     }
 
-    const job = await jobRepository.create(jobData);
+    const job = await jobRepository.create({
+        ...jobData,
+        user: userId,
+    });
     return job;
 };
 
