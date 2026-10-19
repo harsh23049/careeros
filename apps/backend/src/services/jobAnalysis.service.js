@@ -7,9 +7,9 @@ const analyzeJob = async (
     jobId,
     userId
 ) => {
-    // 1. Find the job
+    // 1. Find the job belonging to the authenticated user
     const job =
-        await jobRepository.findById(jobId);
+        await jobRepository.findByIdAndUser(jobId, userId);
 
     if (!job) {
         throw new ApiError(
@@ -118,8 +118,9 @@ be inferred from the job posting.
 
     // 5. Save AI analysis inside the Job
     const updatedJob =
-        await jobRepository.update(
+        await jobRepository.updateByIdAndUser(
             jobId,
+            userId,
             {
                 extractedEntities:
                     result.output,
