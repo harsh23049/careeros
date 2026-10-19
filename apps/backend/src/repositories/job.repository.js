@@ -1,7 +1,7 @@
 import Job from "../models/job.model.js";
 
 class JobRepository {
-    // Create a new job
+    // Create a new job with owner association
     async create(jobData) {
         return await Job.create(jobData);
     }
@@ -23,11 +23,6 @@ class JobRepository {
         });
     }
 
-    // Find a job by ID
-    async findById(jobId) {
-        return await Job.findById(jobId);
-    }
-
     // Find a job by exact URL belonging to a specific user (scoped duplicate check)
     async findByUrlAndUser(jobUrl, userId) {
         if (!jobUrl || !userId) return null;
@@ -47,10 +42,13 @@ class JobRepository {
         });
     }
 
-    // Update a job
-    async update(jobId, updateData) {
-        return await Job.findByIdAndUpdate(
-            jobId,
+    // Update a job belonging to a specific user
+    async updateByIdAndUser(jobId, userId, updateData) {
+        return await Job.findOneAndUpdate(
+            {
+                _id: jobId,
+                user: userId,
+            },
             updateData,
             {
                 new: true,
@@ -59,9 +57,19 @@ class JobRepository {
         );
     }
 
-    // Delete a job
-    async deleteById(jobId) {
-        return await Job.findByIdAndDelete(jobId);
+    // Delete a job belonging to a specific user
+    async deleteByIdAndUser(jobId, userId) {
+        return await Job.findOneAndDelete({
+            _id: jobId,
+            user: userId,
+        });
+    }
+
+    // Delete all jobs belonging to a user (account cleanup)
+    async deleteByUserId(userId) {
+        return await Job.deleteMany({
+            user: userId,
+        });
     }
 }
 
