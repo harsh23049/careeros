@@ -13,14 +13,13 @@ const createApplication = async (
     userId,
     applicationData
 ) => {
-    const {
-        job,
-        resume,
-        coverLetter,
-        status = "saved",
-        appliedAt,
-        notes,
-    } = applicationData;
+    const job = applicationData.job || applicationData.jobId;
+    const resume = applicationData.resume || applicationData.resumeId;
+    const coverLetter = applicationData.coverLetter || applicationData.coverLetterId;
+    const status = applicationData.status || "saved";
+    const appliedAt = applicationData.appliedAt;
+    const notes = applicationData.notes;
+    const source = applicationData.source || "manual";
 
     // -------------------------------------------------
     // 1. Verify job exists and belongs to current user
@@ -99,7 +98,56 @@ const createApplication = async (
     }
 
     // -------------------------------------------------
-    // 4. Create initial status history
+    // 4. Check for existing application for this job (idempotent tracking)
+    // -------------------------------------------------
+
+    const existingApplication = await applicationRepository.findByJobAndUser(job, userId);
+    if (existingApplication) {
+        const updates = {};
+        const statusChanged = status && status !== existingApplication.status;
+
+        if (statusChanged) {
+            existingApplication.statusHistory.push({
+                status,
+                changedAt: new Date(),
+            });
+            updates.status = status;
+            updates.statusHistory = existingApplication.statusHistory;
+
+            if (status === "applied" && !existingApplication.appliedAt) {
+                updates.appliedAt = appliedAt || new Date();
+            }
+        }
+
+        if (resume !== undefined) updates.resume = resume;
+        if (coverLetter !== undefined) updates.coverLetter = coverLetter;
+        if (notes !== undefined) updates.notes = notes;
+        if (applicationData.source) updates.source = applicationData.source;
+
+        const updatedApplication = await applicationRepository.update(
+            existingApplication._id,
+            updates
+        );
+
+        if (statusChanged && status === "applied") {
+            await notificationService.createNotification(
+                userId,
+                {
+                    type: "application_update",
+                    title: "Application submitted",
+                    message:
+                        `Your application for ${existingJob.jobTitle} ` +
+                        `at ${existingJob.company} has been submitted.`,
+                    relatedApplication: updatedApplication._id,
+                }
+            );
+        }
+
+        return updatedApplication;
+    }
+
+    // -------------------------------------------------
+    // 5. Create initial status history
     // -------------------------------------------------
 
     const statusHistory = [
@@ -110,7 +158,7 @@ const createApplication = async (
     ];
 
     // -------------------------------------------------
-    // 5. Set appliedAt automatically
+    // 6. Set appliedAt automatically
     // -------------------------------------------------
 
     let applicationDate = appliedAt;
@@ -123,7 +171,7 @@ const createApplication = async (
     }
 
     // -------------------------------------------------
-    // 6. Create application
+    // 7. Create application
     // -------------------------------------------------
 
     const application =
@@ -135,6 +183,7 @@ const createApplication = async (
             status,
             appliedAt: applicationDate,
             notes,
+            source: applicationData.source || "manual",
             statusHistory,
         });
 
@@ -244,6 +293,7 @@ const updateApplication = async (
         "status",
         "appliedAt",
         "notes",
+        "source",
     ];
 
     const updates = {};

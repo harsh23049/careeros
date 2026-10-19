@@ -34,6 +34,17 @@ async create(applicationData) {
             .populate("coverLetter");
     }
 
+    // Find an existing application by job and user
+    async findByJobAndUser(jobId, userId) {
+        return await Application.findOne({
+            job: jobId,
+            user: userId,
+        })
+            .populate("job")
+            .populate("resume")
+            .populate("coverLetter");
+    }
+
     // Find all applications of a user
     async findByUser(userId) {
         return await Application.find({

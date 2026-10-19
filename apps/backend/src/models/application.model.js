@@ -86,6 +86,12 @@ const applicationSchema = new mongoose.Schema(
             maxlength: [2000, "Notes cannot exceed 2000 characters"],
         },
 
+        source: {
+            type: String,
+            trim: true,
+            default: "manual",
+        },
+
         statusHistory: {
             type: [statusHistorySchema],
             default: [],
@@ -95,6 +101,8 @@ const applicationSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+applicationSchema.index({ user: 1, job: 1 });
 
 const Application = mongoose.model(
     "Application",

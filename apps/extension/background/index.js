@@ -16,11 +16,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "saveJob":
           result = await api.saveJob(payload);
           break;
+        case "getJob":
+          result = await api.getJob(payload?.jobId);
+          break;
         case "analyzeJob":
           result = await api.analyzeJob(payload?.jobId);
           break;
         case "getResumes":
           result = await api.getResumes();
+          break;
+        case "getDefaultResume":
+          result = await api.getDefaultResume();
           break;
         case "matchResume":
           result = await api.matchResume(payload?.jobId, payload?.resumeId);
@@ -32,7 +38,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           result = await api.createApplication(
             payload?.jobId,
             payload?.resumeId,
-            payload?.coverLetterId
+            payload?.coverLetterId,
+            payload?.status,
+            payload?.notes,
+            payload?.source
           );
           break;
         case "getApplications":
@@ -48,6 +57,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "getUserProfile":
           result = await api.getUserProfile();
           break;
+        case "getActiveAssistedApply": {
+          const stored = await chrome.storage.local.get("activeAssistedApply");
+          result = stored.activeAssistedApply || null;
+          break;
+        }
+        case "setActiveAssistedApply": {
+          await chrome.storage.local.set({ activeAssistedApply: payload });
+          result = { success: true };
+          break;
+        }
+        case "clearActiveAssistedApply": {
+          await chrome.storage.local.remove("activeAssistedApply");
+          result = { success: true };
+          break;
+        }
         case "login":
           result = await api.login(payload?.email, payload?.password);
           break;

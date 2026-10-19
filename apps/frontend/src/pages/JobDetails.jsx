@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import jobService from '../services/jobService';
@@ -5,6 +6,7 @@ import { useAuth } from '../features/auth';
 import Card, { CardHeader, CardTitle } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import AssistApplyModal from '../components/jobs/AssistApplyModal';
 
 function formatJobDate(dateString) {
   if (!dateString) return 'Recently';
@@ -20,6 +22,7 @@ function formatJobDate(dateString) {
 export function JobDetails() {
   const { id } = useParams();
   const { user } = useAuth();
+  const [isAssistApplyOpen, setIsAssistApplyOpen] = useState(false);
 
   const {
     data: responseData,
@@ -97,7 +100,16 @@ export function JobDetails() {
             <span> &bull; Added {formatJobDate(job.createdAt)}</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsAssistApplyOpen(true)}
+            className="flex items-center gap-1.5 shadow-xs font-semibold"
+            title="Launch Assisted Apply with CareerOS Chrome Extension"
+          >
+            <span>⚡ Assist Apply</span>
+          </Button>
           {job.jobUrl && (
             <a href={job.jobUrl} target="_blank" rel="noreferrer">
               <Button variant="outline" size="sm" className="flex items-center gap-1.5">
@@ -109,7 +121,7 @@ export function JobDetails() {
             </a>
           )}
           <Link to="/ai-tools">
-            <Button variant="primary" size="sm">
+            <Button variant="secondary" size="sm">
               Analyze with AI
             </Button>
           </Link>
@@ -208,6 +220,13 @@ export function JobDetails() {
           )}
         </div>
       </div>
+
+      {/* Assisted Apply Handoff Modal */}
+      <AssistApplyModal
+        job={job}
+        isOpen={isAssistApplyOpen}
+        onClose={() => setIsAssistApplyOpen(false)}
+      />
     </div>
   );
 }

@@ -4,189 +4,189 @@ if (!globalThis.__careerOSContentScriptLoaded) {
     console.log("CareerOS content script loaded");
 
 
-// =====================================================
-// EXTRACTION HELPERS
-// =====================================================
+    // =====================================================
+    // EXTRACTION HELPERS
+    // =====================================================
 
-const MAX_DESCRIPTION_LENGTH = 5000;
+    const MAX_DESCRIPTION_LENGTH = 5000;
 
-function cleanText(value) {
-    return (value || "")
-        .replace(/\s+/g, " ")
-        .trim();
-}
+    function cleanText(value) {
+        return (value || "")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
 
-function getElementText(selector) {
-    const element = document.querySelector(selector);
-    return cleanText(element?.innerText || element?.textContent);
-}
+    function getElementText(selector) {
+        const element = document.querySelector(selector);
+        return cleanText(element?.innerText || element?.textContent);
+    }
 
-function getMetaContent(selector) {
-    return cleanText(document.querySelector(selector)?.getAttribute("content"));
-}
+    function getMetaContent(selector) {
+        return cleanText(document.querySelector(selector)?.getAttribute("content"));
+    }
 
-function firstText(selectors) {
-    for (const selector of selectors) {
-        const value = selector.startsWith("meta[")
-            ? getMetaContent(selector)
-            : getElementText(selector);
+    function firstText(selectors) {
+        for (const selector of selectors) {
+            const value = selector.startsWith("meta[")
+                ? getMetaContent(selector)
+                : getElementText(selector);
 
-        if (value) {
-            return value;
+            if (value) {
+                return value;
+            }
         }
+
+        return "";
     }
 
-    return "";
-}
+    function getDescription(selectors) {
+        const description = firstText(selectors);
 
-function getDescription(selectors) {
-    const description = firstText(selectors);
+        if (description) {
+            return description.slice(0, MAX_DESCRIPTION_LENGTH);
+        }
 
-    if (description) {
-        return description.slice(0, MAX_DESCRIPTION_LENGTH);
+        const mainText = cleanText(document.querySelector("main")?.innerText);
+
+        if (mainText) {
+            return mainText.slice(0, MAX_DESCRIPTION_LENGTH);
+        }
+
+        return cleanText(document.body?.innerText)
+            .slice(0, MAX_DESCRIPTION_LENGTH);
     }
 
-    const mainText = cleanText(document.querySelector("main")?.innerText);
+    // =====================================================
+    // PAGE TYPE DETECTION
+    // =====================================================
 
-    if (mainText) {
-        return mainText.slice(0, MAX_DESCRIPTION_LENGTH);
+    function detectPageType() {
+        const url = new URL(window.location.href);
+        const host = url.hostname.toLowerCase();
+        const path = url.pathname.toLowerCase();
+
+        if (host.includes("linkedin.com") && path.includes("/jobs")) {
+            return "linkedin_job";
+        }
+
+        if (
+            host.includes("naukri.com") &&
+            (path.includes("/job-listings-") || path.includes("/job"))
+        ) {
+            return "naukri_job";
+        }
+
+        if (host.includes("greenhouse.io")) {
+            return "greenhouse_job";
+        }
+
+        if (host.includes("workdayjobs.com")) {
+            return "workday_job";
+        }
+
+        if (
+            document.querySelector('form[action*="google.com"]') ||
+            (host === "docs.google.com" && path.includes("/forms")) ||
+            host === "forms.gle"
+        ) {
+            return "google_form";
+        }
+
+        return "unknown";
     }
 
-    return cleanText(document.body?.innerText)
-        .slice(0, MAX_DESCRIPTION_LENGTH);
-}
+    // =====================================================
+    // JOB EXTRACTION
+    // =====================================================
 
-// =====================================================
-// PAGE TYPE DETECTION
-// =====================================================
-
-function detectPageType() {
-    const url = new URL(window.location.href);
-    const host = url.hostname.toLowerCase();
-    const path = url.pathname.toLowerCase();
-
-    if (host.includes("linkedin.com") && path.includes("/jobs")) {
-        return "linkedin_job";
+    function extractNaukriData() {
+        return {
+            jobTitle: firstText([
+                "h1.jd-header-title",
+                'h1[class*="jd-header-title"]',
+                'h1[class*="styles_jd-header-title"]',
+                "h1"
+            ]),
+            company: firstText([
+                ".jd-header-comp-name",
+                '[class*="jd-header-comp-name"]',
+                '[class*="companyName"]',
+                '[class*="company-name"]',
+                '[class*="comp-name"]'
+            ]),
+            location: firstText([
+                ".jd-header-comp-name + span",
+                '[class*="location"]',
+                '[class*="locWdth"]',
+                '[class*="job-location"]'
+            ]),
+            description: getDescription([
+                "#jobDescriptionText",
+                ".job-desc",
+                '[class*="job-desc"]',
+                '[class*="jobDescription"]',
+                '[class*="description"]'
+            ])
+        };
     }
 
-    if (
-        host.includes("naukri.com") &&
-        (path.includes("/job-listings-") || path.includes("/job"))
-    ) {
-        return "naukri_job";
+    function extractGenericData() {
+        return {
+            jobTitle: firstText([
+                "h1",
+                'meta[property="og:title"]',
+                'meta[name="twitter:title"]',
+                "title"
+            ]),
+            company: firstText([
+                '[itemprop="hiringOrganization"]',
+                '[class*="company"]',
+                '[class*="employer"]',
+                '[class*="organization"]'
+            ]),
+            location: firstText([
+                '[itemprop="jobLocation"]',
+                '[class*="location"]',
+                '[class*="loc"]'
+            ]),
+            description: getDescription([
+                '[itemprop="description"]',
+                '[class*="job-description"]',
+                '[class*="jobDescription"]',
+                '[class*="description"]',
+                '[id*="description"]',
+                'meta[name="description"]',
+                'meta[property="og:description"]'
+            ])
+        };
     }
 
-    if (host.includes("greenhouse.io")) {
-        return "greenhouse_job";
+    function extractJobData() {
+        const pageType = detectPageType();
+        const extractedData = pageType === "naukri_job"
+            ? extractNaukriData()
+            : extractGenericData();
+
+        return {
+            pageType,
+            jobTitle: extractedData.jobTitle,
+            company: extractedData.company,
+            location: extractedData.location,
+            description: extractedData.description,
+            jobUrl: window.location.href
+        };
     }
 
-    if (host.includes("workdayjobs.com")) {
-        return "workday_job";
-    }
 
-    if (
-        document.querySelector('form[action*="google.com"]') ||
-        (host === "docs.google.com" && path.includes("/forms")) ||
-        host === "forms.gle"
-    ) {
-        return "google_form";
-    }
-
-    return "unknown";
-}
-
-// =====================================================
-// JOB EXTRACTION
-// =====================================================
-
-function extractNaukriData() {
-    return {
-        jobTitle: firstText([
-            "h1.jd-header-title",
-            'h1[class*="jd-header-title"]',
-            'h1[class*="styles_jd-header-title"]',
-            "h1"
-        ]),
-        company: firstText([
-            ".jd-header-comp-name",
-            '[class*="jd-header-comp-name"]',
-            '[class*="companyName"]',
-            '[class*="company-name"]',
-            '[class*="comp-name"]'
-        ]),
-        location: firstText([
-            ".jd-header-comp-name + span",
-            '[class*="location"]',
-            '[class*="locWdth"]',
-            '[class*="job-location"]'
-        ]),
-        description: getDescription([
-            "#jobDescriptionText",
-            ".job-desc",
-            '[class*="job-desc"]',
-            '[class*="jobDescription"]',
-            '[class*="description"]'
-        ])
-    };
-}
-
-function extractGenericData() {
-    return {
-        jobTitle: firstText([
-            "h1",
-            'meta[property="og:title"]',
-            'meta[name="twitter:title"]',
-            "title"
-        ]),
-        company: firstText([
-            '[itemprop="hiringOrganization"]',
-            '[class*="company"]',
-            '[class*="employer"]',
-            '[class*="organization"]'
-        ]),
-        location: firstText([
-            '[itemprop="jobLocation"]',
-            '[class*="location"]',
-            '[class*="loc"]'
-        ]),
-        description: getDescription([
-            '[itemprop="description"]',
-            '[class*="job-description"]',
-            '[class*="jobDescription"]',
-            '[class*="description"]',
-            '[id*="description"]',
-            'meta[name="description"]',
-            'meta[property="og:description"]'
-        ])
-    };
-}
-
-function extractJobData() {
-    const pageType = detectPageType();
-    const extractedData = pageType === "naukri_job"
-        ? extractNaukriData()
-        : extractGenericData();
-
-    return {
-        pageType,
-        jobTitle: extractedData.jobTitle,
-        company: extractedData.company,
-        location: extractedData.location,
-        description: extractedData.description,
-        jobUrl: window.location.href
-    };
-}
-
-
-// =====================================================
-// MESSAGE HANDLING
-// =====================================================
+    // =====================================================
+    // MESSAGE HANDLING
+    // =====================================================
 
     chrome.runtime.onMessage.addListener(
         (message, sender, sendResponse) => {
 
-        // Popup asks:
-        // "Give me the current page information"
+            // Popup asks:
+            // "Give me the current page information"
 
             if (message?.type !== "GET_PAGE_DATA") {
                 return false;
@@ -221,65 +221,103 @@ function extractJobData() {
         }
     );
 
+    // =====================================================
+    // BACKGROUND API HELPER
+    // =====================================================
+
+    function callBackgroundApi(action, payload) {
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage(
+                { type: "CAREEROS_API_REQUEST", action, payload },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        return reject(new Error(chrome.runtime.lastError.message || "Failed to communicate with CareerOS background service."));
+                    }
+                    if (!response) {
+                        return reject(new Error("No response from CareerOS background service."));
+                    }
+                    if (!response.success) {
+                        const error = new Error(response.error?.message || "Operation failed.");
+                        error.status = response.error?.status;
+                        return reject(error);
+                    }
+                    resolve(response.data);
+                }
+            );
+        }
+
 // =====================================================
-// BACKGROUND API HELPER
+// WEBSITE TO EXTENSION HANDOFF BRIDGE
 // =====================================================
 
-function callBackgroundApi(action, payload) {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(
-            { type: "CAREEROS_API_REQUEST", action, payload },
-            (response) => {
-                if (chrome.runtime.lastError) {
-                    return reject(new Error(chrome.runtime.lastError.message || "Failed to communicate with CareerOS background service."));
+window.addEventListener("message", async (event) => {
+            if (event.source !== window || !event.data || typeof event.data !== "object") return;
+
+            if (event.data.type === "CAREEROS_EXTENSION_PING") {
+                window.postMessage({
+                    type: "CAREEROS_EXTENSION_PONG",
+                    ready: true,
+                    version: "1.0.0"
+                }, "*");
+            } else if (event.data.type === "CAREEROS_ASSIST_APPLY_INITIATE") {
+                const payload = event.data.payload || {};
+                try {
+                    await callBackgroundApi("setActiveAssistedApply", {
+                        jobId: payload.jobId,
+                        jobUrl: payload.jobUrl,
+                        company: payload.company,
+                        jobTitle: payload.jobTitle,
+                        timestamp: Date.now()
+                    });
+                    window.postMessage({
+                        type: "CAREEROS_ASSIST_APPLY_ACK",
+                        success: true,
+                        jobId: payload.jobId
+                    }, "*");
+                } catch (err) {
+                    console.error("CareerOS content script failed to set active assisted apply:", err);
+                    window.postMessage({
+                        type: "CAREEROS_ASSIST_APPLY_ACK",
+                        success: false,
+                        error: err.message
+                    }, "*");
                 }
-                if (!response) {
-                    return reject(new Error("No response from CareerOS background service."));
-                }
-                if (!response.success) {
-                    const error = new Error(response.error?.message || "Operation failed.");
-                    error.status = response.error?.status;
-                    return reject(error);
-                }
-                resolve(response.data);
             }
-        );
-    });
-}
+        });
 
-// =====================================================
-// IN-PAGE ASSISTANT (FLOATING LAUNCHER & SHADOW DOM DRAWER)
-// =====================================================
+        // =====================================================
+        // IN-PAGE ASSISTANT (FLOATING LAUNCHER & SHADOW DOM DRAWER)
+        // =====================================================
 
-const HOST_ID = "careeros-assistant-root";
+        const HOST_ID = "careeros-assistant-root";
 
-function initCareerOSAssistant() {
-    if (globalThis.__careerOSDrawerInjected || document.getElementById(HOST_ID)) {
-        return;
-    }
-    globalThis.__careerOSDrawerInjected = true;
+        function initCareerOSAssistant() {
+            if (globalThis.__careerOSDrawerInjected || document.getElementById(HOST_ID)) {
+                return;
+            }
+            globalThis.__careerOSDrawerInjected = true;
 
-    const host = document.createElement("div");
-    host.id = HOST_ID;
-    document.body.appendChild(host);
+            const host = document.createElement("div");
+            host.id = HOST_ID;
+            document.body.appendChild(host);
 
-    const shadow = host.attachShadow({ mode: "open" });
+            const shadow = host.attachShadow({ mode: "open" });
 
-    // Internal state
-    let currentJob = extractJobData();
-    let currentJobId = null;
-    let currentCoverLetterId = null;
-    let isDrawerOpen = false;
+            // Internal state
+            let currentJob = extractJobData();
+            let currentJobId = null;
+            let currentCoverLetterId = null;
+            let isDrawerOpen = false;
 
-    let isSaving = false;
-    let isAnalyzing = false;
-    let isMatching = false;
-    let isGeneratingCL = false;
-    let isCreatingApp = false;
+            let isSaving = false;
+            let isAnalyzing = false;
+            let isMatching = false;
+            let isGeneratingCL = false;
+            let isCreatingApp = false;
 
-    // Styles
-    const style = document.createElement("style");
-    style.textContent = `
+            // Styles
+            const style = document.createElement("style");
+            style.textContent = `
         :host {
             all: initial;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
@@ -656,11 +694,68 @@ function initCareerOSAssistant() {
             background: #fee2e2;
             color: #991b1b;
         }
+
+        .fields-review-list {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            max-height: 190px;
+            overflow-y: auto;
+            margin-bottom: 8px;
+        }
+
+        .field-review-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 11px;
+            gap: 6px;
+        }
+
+        .field-review-row:last-child {
+            border-bottom: none;
+        }
+
+        .field-name-label {
+            font-weight: 600;
+            color: #334155;
+            flex: 0 0 38%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .field-val-input {
+            flex: 1;
+            padding: 3px 6px;
+            font-size: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            color: #0f172a;
+            outline: none;
+        }
+
+        .field-val-input:focus {
+            border-color: #6366f1;
+        }
+
+        .field-sensitive-tag {
+            font-size: 9px;
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-weight: 600;
+            display: inline-block;
+        }
     `;
 
-    // DOM Markup
-    const container = document.createElement("div");
-    container.innerHTML = `
+            // DOM Markup
+            const container = document.createElement("div");
+            container.innerHTML = `
         <button class="careeros-launcher" id="launcher-btn" title="Open CareerOS">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -703,6 +798,55 @@ function initCareerOSAssistant() {
             <div class="status-banner" id="status-banner"></div>
 
             <div class="drawer-body">
+                <!-- Assisted Apply Card -->
+                <div class="card" id="assisted-apply-card">
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>⚡ Assisted Apply</span>
+                        <span id="detected-form-badge" style="font-size:10px; font-weight:600; background:#e0e7ff; color:#4338ca; padding:2px 6px; border-radius:4px;">Scanning...</span>
+                    </div>
+                    <div style="font-size:11px; color:#64748b; margin-bottom:8px;">
+                        Detect job application fields and autofill with your verified profile and resume data.
+                    </div>
+
+                    <div id="assisted-apply-detected-section" style="display:none;">
+                        <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between;">
+                            <span>Detected Form Fields</span>
+                            <span id="fields-count-badge" style="color:#4f46e5;">0 found</span>
+                        </div>
+                        <div class="fields-review-list" id="fields-review-list"></div>
+
+                        <div class="button-row">
+                            <button class="btn btn-primary btn-sm" id="autofill-btn">✨ Autofill Form</button>
+                            <button class="btn btn-outline btn-sm" id="redetect-btn">🔄 Refresh Fields</button>
+                        </div>
+                    </div>
+
+                    <div id="no-form-detected-msg" style="display:none; padding:8px; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; font-size:11px; color:#64748b; margin-bottom:8px;">
+                        No supported application form detected yet on this page. Navigate to the job application or "Apply" form, then click Scan.
+                        <div style="margin-top:6px;">
+                            <button class="btn btn-outline btn-sm" id="manual-detect-btn">Scan for Application Form</button>
+                        </div>
+                    </div>
+
+                    <div id="autofill-result-banner" style="display:none; padding:8px; border-radius:6px; background:#f0fdf4; border:1px solid #bbf7d0; font-size:11px; color:#15803d; margin-top:8px;">
+                        <div id="autofill-result-text" style="font-weight:600;"></div>
+                        <div style="font-size:10px; color:#166534; margin-top:2px;">
+                            ⚠️ Review the form and personally click Submit on the external portal when ready.
+                        </div>
+                    </div>
+
+                    <!-- Confirm Applied Tracker -->
+                    <div id="confirm-applied-section" style="border-top:1px dashed #e2e8f0; padding-top:8px; margin-top:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:11px; font-weight:600; color:#0f172a;">Application Tracking</span>
+                            <span id="app-tracking-status" style="font-size:10px; color:#64748b;">Not applied yet</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="confirm-applied-btn" style="width:100%; font-weight:600;">
+                            ✓ Confirm Applied & Track
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Job Details Card (Editable) -->
                 <div class="card">
                     <div class="card-header">Job Details</div>
@@ -771,518 +915,791 @@ function initCareerOSAssistant() {
         </div>
     `;
 
-    shadow.appendChild(style);
-    shadow.appendChild(container);
+            shadow.appendChild(style);
+            shadow.appendChild(container);
 
-    // Element references
-    const launcherBtn = shadow.getElementById("launcher-btn");
-    const drawer = shadow.getElementById("drawer");
-    const closeBtn = shadow.getElementById("close-btn");
-    const reextractBtn = shadow.getElementById("reextract-btn");
-    const pageBadge = shadow.getElementById("page-badge");
-    const statusBanner = shadow.getElementById("status-banner");
+            // Element references
+            const launcherBtn = shadow.getElementById("launcher-btn");
+            const drawer = shadow.getElementById("drawer");
+            const closeBtn = shadow.getElementById("close-btn");
+            const reextractBtn = shadow.getElementById("reextract-btn");
+            const pageBadge = shadow.getElementById("page-badge");
+            const statusBanner = shadow.getElementById("status-banner");
 
-    const jobTitleInput = shadow.getElementById("job-title-input");
-    const jobCompanyInput = shadow.getElementById("job-company-input");
-    const jobLocationInput = shadow.getElementById("job-location-input");
-    const jobUrlInput = shadow.getElementById("job-url-input");
-    const jobDescInput = shadow.getElementById("job-desc-input");
+            const jobTitleInput = shadow.getElementById("job-title-input");
+            const jobCompanyInput = shadow.getElementById("job-company-input");
+            const jobLocationInput = shadow.getElementById("job-location-input");
+            const jobUrlInput = shadow.getElementById("job-url-input");
+            const jobDescInput = shadow.getElementById("job-desc-input");
 
-    const saveJobBtn = shadow.getElementById("save-job-btn");
-    const analyzeJobBtn = shadow.getElementById("analyze-job-btn");
+            const saveJobBtn = shadow.getElementById("save-job-btn");
+            const analyzeJobBtn = shadow.getElementById("analyze-job-btn");
 
-    const analysisCard = shadow.getElementById("analysis-card");
-    const analysisContent = shadow.getElementById("analysis-content");
+            const analysisCard = shadow.getElementById("analysis-card");
+            const analysisContent = shadow.getElementById("analysis-content");
 
-    const resumeCard = shadow.getElementById("resume-card");
-    const resumeSelect = shadow.getElementById("resume-select");
-    const matchResumeBtn = shadow.getElementById("match-resume-btn");
-    const genCoverBtn = shadow.getElementById("gen-cover-btn");
-    const matchResultBox = shadow.getElementById("match-result-box");
-    const coverLetterBox = shadow.getElementById("cover-letter-box");
-    const coverLetterText = shadow.getElementById("cover-letter-text");
-    const copyClBtn = shadow.getElementById("copy-cl-btn");
-    const addAppBtn = shadow.getElementById("add-app-btn");
+            const resumeCard = shadow.getElementById("resume-card");
+            const resumeSelect = shadow.getElementById("resume-select");
+            const matchResumeBtn = shadow.getElementById("match-resume-btn");
+            const genCoverBtn = shadow.getElementById("gen-cover-btn");
+            const matchResultBox = shadow.getElementById("match-result-box");
+            const coverLetterBox = shadow.getElementById("cover-letter-box");
+            const coverLetterText = shadow.getElementById("cover-letter-text");
+            const copyClBtn = shadow.getElementById("copy-cl-btn");
+            const addAppBtn = shadow.getElementById("add-app-btn");
 
-    // Banner notifications
-    function showBanner(message, type = "info") {
-        statusBanner.className = `status-banner ${type}`;
-        statusBanner.textContent = message;
-        statusBanner.style.display = "block";
-    }
+            // Assisted Apply DOM references
+            const detectedFormBadge = shadow.getElementById("detected-form-badge");
+            const assistedApplyDetectedSection = shadow.getElementById("assisted-apply-detected-section");
+            const fieldsCountBadge = shadow.getElementById("fields-count-badge");
+            const fieldsReviewList = shadow.getElementById("fields-review-list");
+            const autofillBtn = shadow.getElementById("autofill-btn");
+            const redetectBtn = shadow.getElementById("redetect-btn");
+            const noFormDetectedMsg = shadow.getElementById("no-form-detected-msg");
+            const manualDetectBtn = shadow.getElementById("manual-detect-btn");
+            const autofillResultBanner = shadow.getElementById("autofill-result-banner");
+            const autofillResultText = shadow.getElementById("autofill-result-text");
+            const confirmAppliedBtn = shadow.getElementById("confirm-applied-btn");
+            const appTrackingStatus = shadow.getElementById("app-tracking-status");
 
-    function clearBanner() {
-        statusBanner.className = "status-banner";
-        statusBanner.textContent = "";
-        statusBanner.style.display = "none";
-    }
+            let detectedFields = [];
+            let mappedUserData = {};
+            let isAutofilling = false;
+            let isConfirmingApp = false;
 
-    // Toggle drawer
-    function toggleDrawer(open) {
-        isDrawerOpen = typeof open === "boolean" ? open : !isDrawerOpen;
-        if (isDrawerOpen) {
-            drawer.classList.add("open");
-        } else {
-            drawer.classList.remove("open");
-        }
-    }
-
-    // Populate extracted job into form
-    function populateJobForm(data) {
-        currentJob = data || {};
-        jobTitleInput.value = currentJob.jobTitle || "";
-        jobCompanyInput.value = currentJob.company || "";
-        jobLocationInput.value = currentJob.location || "";
-        jobUrlInput.value = currentJob.jobUrl || window.location.href;
-        jobDescInput.value = currentJob.description || "";
-
-        const pageType = currentJob.pageType || detectPageType();
-        if (pageType === "naukri_job") {
-            pageBadge.textContent = "Naukri Job";
-        } else if (pageType === "linkedin_job") {
-            pageBadge.textContent = "LinkedIn Job";
-        } else if (pageType === "greenhouse_job") {
-            pageBadge.textContent = "Greenhouse Job";
-        } else if (pageType === "workday_job") {
-            pageBadge.textContent = "Workday Job";
-        } else {
-            pageBadge.textContent = "Webpage";
-        }
-    }
-
-    // Refresh extraction
-    function handleReextract() {
-        try {
-            const data = extractJobData();
-            populateJobForm(data);
-            showBanner("Job details re-extracted from page.", "info");
-        } catch (err) {
-            showBanner("Could not extract job from page. You can fill details manually.", "warning");
-        }
-    }
-
-    // Load user resumes
-    async function loadResumes() {
-        resumeCard.style.display = "flex";
-        try {
-            const resumes = await callBackgroundApi("getResumes");
-            const resumeList = Array.isArray(resumes) ? resumes : (resumes?.data || []);
-
-            resumeSelect.innerHTML = "";
-            if (!resumeList || resumeList.length === 0) {
-                resumeSelect.innerHTML = "<option value=''>No resumes found in CareerOS</option>";
-                matchResumeBtn.disabled = true;
-                genCoverBtn.disabled = true;
-                return;
+            // Banner notifications
+            function showBanner(message, type = "info") {
+                statusBanner.className = `status-banner ${type}`;
+                statusBanner.textContent = message;
+                statusBanner.style.display = "block";
             }
 
-            resumeList.forEach((resume) => {
-                const opt = document.createElement("option");
-                opt.value = resume._id;
-                opt.textContent = resume.title + (resume.isDefault ? " (Default)" : "");
-                if (resume.isDefault) opt.selected = true;
-                resumeSelect.appendChild(opt);
-            });
-
-            matchResumeBtn.disabled = false;
-            genCoverBtn.disabled = false;
-        } catch (error) {
-            console.error("CareerOS assistant resume fetch error:", error);
-            if (error.status === 401 || error.status === 403) {
-                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-            }
-            resumeSelect.innerHTML = "<option value=''>Failed to load resumes</option>";
-            matchResumeBtn.disabled = true;
-            genCoverBtn.disabled = true;
-        }
-    }
-
-    // Save Job Handler
-    async function handleSaveJob() {
-        if (isSaving) return;
-
-        const jobPayload = {
-            jobTitle: jobTitleInput.value.trim(),
-            company: jobCompanyInput.value.trim(),
-            location: jobLocationInput.value.trim(),
-            description: jobDescInput.value.trim(),
-            jobUrl: jobUrlInput.value.trim() || window.location.href,
-        };
-
-        if (!jobPayload.jobTitle || !jobPayload.company || !jobPayload.jobUrl) {
-            showBanner("Job title, company, and URL are required.", "warning");
-            return;
-        }
-
-        isSaving = true;
-        saveJobBtn.disabled = true;
-        saveJobBtn.textContent = "Saving...";
-        clearBanner();
-
-        try {
-            const response = await callBackgroundApi("saveJob", jobPayload);
-            const saved = response?.data || response;
-            if (saved?._id) {
-                currentJobId = saved._id;
-            }
-            saveJobBtn.textContent = "Saved ✓";
-            showBanner("Job saved successfully to CareerOS!", "success");
-            loadResumes();
-        } catch (error) {
-            console.error("CareerOS assistant save job error:", error);
-            saveJobBtn.disabled = false;
-            saveJobBtn.textContent = "Save Job";
-
-            if (error.status === 401 || error.status === 403) {
-                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-            } else if (error.status === 409) {
-                if (error.data?._id) {
-                    currentJobId = error.data._id;
-                }
-                showBanner("Job is already saved in CareerOS.", "info");
-                saveJobBtn.textContent = "Saved ✓";
-                loadResumes();
-            } else {
-                showBanner(error.message || "Failed to save job.", "error");
-            }
-        } finally {
-            isSaving = false;
-        }
-    }
-
-    // Render Analysis
-    function renderAnalysis(analysis) {
-        analysisContent.innerHTML = "";
-        analysisCard.style.display = "flex";
-
-        if (!analysis || typeof analysis !== "object") {
-            analysisContent.innerHTML = "<p>No analysis details returned.</p>";
-            return;
-        }
-
-        if (analysis.summary?.trim()) {
-            const sec = document.createElement("div");
-            sec.className = "analysis-section";
-            sec.innerHTML = `<h4>Summary</h4><p>${analysis.summary}</p>`;
-            analysisContent.appendChild(sec);
-        }
-
-        const fields = [
-            { key: "skills", label: "Skills" },
-            { key: "requirements", label: "Requirements" },
-            { key: "responsibilities", label: "Responsibilities" },
-            { key: "technologies", label: "Technologies" },
-            { key: "domains", label: "Domains" },
-        ];
-
-        fields.forEach(({ key, label }) => {
-            const items = Array.isArray(analysis[key])
-                ? analysis[key].filter((item) => item && String(item).trim())
-                : [];
-
-            if (!items.length) return;
-
-            const sec = document.createElement("div");
-            sec.className = "analysis-section";
-            const ul = document.createElement("ul");
-            items.forEach((item) => {
-                const li = document.createElement("li");
-                li.textContent = item;
-                ul.appendChild(li);
-            });
-            sec.innerHTML = `<h4>${label}</h4>`;
-            sec.appendChild(ul);
-            analysisContent.appendChild(sec);
-        });
-    }
-
-    // Analyze Job Handler
-    async function handleAnalyzeJob() {
-        if (isAnalyzing) return;
-
-        // Ensure job is saved first
-        if (!currentJobId) {
-            const jobPayload = {
-                jobTitle: jobTitleInput.value.trim(),
-                company: jobCompanyInput.value.trim(),
-                location: jobLocationInput.value.trim(),
-                description: jobDescInput.value.trim(),
-                jobUrl: jobUrlInput.value.trim() || window.location.href,
-            };
-
-            if (!jobPayload.jobTitle || !jobPayload.company || !jobPayload.jobUrl) {
-                showBanner("Please provide job title and company first.", "warning");
-                return;
+            function clearBanner() {
+                statusBanner.className = "status-banner";
+                statusBanner.textContent = "";
+                statusBanner.style.display = "none";
             }
 
-            analyzeJobBtn.disabled = true;
-            analyzeJobBtn.textContent = "Saving job first...";
-
-            try {
-                const saveRes = await callBackgroundApi("saveJob", jobPayload);
-                const saved = saveRes?.data || saveRes;
-                if (saved?._id) {
-                    currentJobId = saved._id;
-                    saveJobBtn.textContent = "Saved ✓";
-                }
-            } catch (saveErr) {
-                analyzeJobBtn.disabled = false;
-                analyzeJobBtn.textContent = "Analyze Job";
-                if (saveErr.status === 401 || saveErr.status === 403) {
-                    showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-                } else if (saveErr.status === 409) {
-                    // Already saved, proceed with analysis if we can find job or notify
-                    showBanner("Job is already saved. Click Analyze Job again.", "info");
+            // Toggle drawer
+            function toggleDrawer(open) {
+                isDrawerOpen = typeof open === "boolean" ? open : !isDrawerOpen;
+                if (isDrawerOpen) {
+                    drawer.classList.add("open");
                 } else {
-                    showBanner(saveErr.message || "Failed to save job before analysis.", "error");
+                    drawer.classList.remove("open");
                 }
-                return;
             }
-        }
 
-        if (!currentJobId) {
-            showBanner("Please save the job first before analyzing.", "warning");
-            analyzeJobBtn.disabled = false;
-            analyzeJobBtn.textContent = "Analyze Job";
-            return;
-        }
+            // Populate extracted job into form
+            function populateJobForm(data) {
+                currentJob = data || {};
+                jobTitleInput.value = currentJob.jobTitle || "";
+                jobCompanyInput.value = currentJob.company || "";
+                jobLocationInput.value = currentJob.location || "";
+                jobUrlInput.value = currentJob.jobUrl || window.location.href;
+                jobDescInput.value = currentJob.description || "";
 
-        isAnalyzing = true;
-        analyzeJobBtn.disabled = true;
-        analyzeJobBtn.textContent = "Analyzing with AI...";
-        clearBanner();
-
-        try {
-            const response = await callBackgroundApi("analyzeJob", { jobId: currentJobId });
-            const analysis = response?.analysis || response?.data?.analysis || response;
-            renderAnalysis(analysis);
-            showBanner("Job analysis ready!", "success");
-            loadResumes();
-        } catch (error) {
-            console.error("CareerOS assistant analyze error:", error);
-            if (error.status === 401 || error.status === 403) {
-                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-            } else {
-                showBanner(error.message || "Failed to analyze job.", "error");
+                const pageType = currentJob.pageType || detectPageType();
+                if (pageType === "naukri_job") {
+                    pageBadge.textContent = "Naukri Job";
+                } else if (pageType === "linkedin_job") {
+                    pageBadge.textContent = "LinkedIn Job";
+                } else if (pageType === "greenhouse_job") {
+                    pageBadge.textContent = "Greenhouse Job";
+                } else if (pageType === "workday_job") {
+                    pageBadge.textContent = "Workday Job";
+                } else {
+                    pageBadge.textContent = "Webpage";
+                }
             }
-        } finally {
-            isAnalyzing = false;
-            analyzeJobBtn.disabled = false;
-            analyzeJobBtn.textContent = "Analyze Job";
-        }
-    }
 
-    // Render Match Result
-    function renderMatchResult(match) {
-        matchResultBox.innerHTML = "";
-        matchResultBox.style.display = "block";
-        coverLetterBox.style.display = "none";
-
-        const score = match.matchScore ?? 0;
-        const scoreBadge = document.createElement("div");
-        scoreBadge.className = "match-score-badge";
-        scoreBadge.innerHTML = `<span>Match Score:</span> <span>${score}%</span>`;
-        matchResultBox.appendChild(scoreBadge);
-
-        if (Array.isArray(match.matchingSkills) && match.matchingSkills.length > 0) {
-            const title = document.createElement("div");
-            title.style.fontSize = "11px";
-            title.style.fontWeight = "600";
-            title.style.color = "#166534";
-            title.textContent = "Matching Skills:";
-            matchResultBox.appendChild(title);
-
-            const tags = document.createElement("div");
-            tags.className = "skills-tag-container";
-            match.matchingSkills.forEach((s) => {
-                const tag = document.createElement("span");
-                tag.className = "skill-tag skill-matching";
-                tag.textContent = s;
-                tags.appendChild(tag);
-            });
-            matchResultBox.appendChild(tags);
-        }
-
-        if (Array.isArray(match.missingSkills) && match.missingSkills.length > 0) {
-            const title = document.createElement("div");
-            title.style.fontSize = "11px";
-            title.style.fontWeight = "600";
-            title.style.color = "#991b1b";
-            title.textContent = "Missing Skills:";
-            matchResultBox.appendChild(title);
-
-            const tags = document.createElement("div");
-            tags.className = "skills-tag-container";
-            match.missingSkills.forEach((s) => {
-                const tag = document.createElement("span");
-                tag.className = "skill-tag skill-missing";
-                tag.textContent = s;
-                tags.appendChild(tag);
-            });
-            matchResultBox.appendChild(tags);
-        }
-    }
-
-    // Match Resume Handler
-    async function handleMatchResume() {
-        if (isMatching) return;
-
-        const resumeId = resumeSelect.value;
-        if (!resumeId) {
-            showBanner("Please select a resume first.", "warning");
-            return;
-        }
-
-        if (!currentJobId) {
-            showBanner("Please save or analyze the job first.", "warning");
-            return;
-        }
-
-        isMatching = true;
-        matchResumeBtn.disabled = true;
-        matchResumeBtn.textContent = "Matching...";
-        clearBanner();
-
-        try {
-            const matchAnalysis = await callBackgroundApi("matchResume", {
-                jobId: currentJobId,
-                resumeId,
-            });
-            renderMatchResult(matchAnalysis);
-            showBanner("Resume match analysis complete!", "success");
-        } catch (error) {
-            console.error("CareerOS assistant match resume error:", error);
-            if (error.status === 400) {
-                showBanner("Please analyze the job first before matching.", "warning");
-            } else if (error.status === 401 || error.status === 403) {
-                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-            } else {
-                showBanner(error.message || "Failed to match resume.", "error");
+            // Refresh extraction
+            function handleReextract() {
+                try {
+                    const data = extractJobData();
+                    populateJobForm(data);
+                    showBanner("Job details re-extracted from page.", "info");
+                } catch (err) {
+                    showBanner("Could not extract job from page. You can fill details manually.", "warning");
+                }
             }
-        } finally {
-            isMatching = false;
-            matchResumeBtn.disabled = false;
-            matchResumeBtn.textContent = "Match Resume";
-        }
-    }
 
-    // Render Cover Letter
-    function renderCoverLetter(content) {
-        matchResultBox.style.display = "none";
-        coverLetterBox.style.display = "block";
-        coverLetterText.value = content || "";
-    }
+            // Load user resumes
+            async function loadResumes() {
+                resumeCard.style.display = "flex";
+                try {
+                    const resumes = await callBackgroundApi("getResumes");
+                    const resumeList = Array.isArray(resumes) ? resumes : (resumes?.data || []);
 
-    // Generate Cover Letter Handler
-    async function handleGenerateCoverLetter() {
-        if (isGeneratingCL) return;
+                    resumeSelect.innerHTML = "";
+                    if (!resumeList || resumeList.length === 0) {
+                        resumeSelect.innerHTML = "<option value=''>No resumes found in CareerOS</option>";
+                        matchResumeBtn.disabled = true;
+                        genCoverBtn.disabled = true;
+                        return;
+                    }
 
-        const resumeId = resumeSelect.value;
-        if (!resumeId) {
-            showBanner("Please select a resume first.", "warning");
-            return;
-        }
+                    resumeList.forEach((resume) => {
+                        const opt = document.createElement("option");
+                        opt.value = resume._id;
+                        opt.textContent = resume.title + (resume.isDefault ? " (Default)" : "");
+                        if (resume.isDefault) opt.selected = true;
+                        resumeSelect.appendChild(opt);
+                    });
 
-        if (!currentJobId) {
-            showBanner("Please save or analyze the job first.", "warning");
-            return;
-        }
-
-        isGeneratingCL = true;
-        genCoverBtn.disabled = true;
-        genCoverBtn.textContent = "Generating...";
-        clearBanner();
-
-        try {
-            const result = await callBackgroundApi("generateCoverLetter", {
-                jobId: currentJobId,
-                resumeId,
-            });
-            currentCoverLetterId = result?._id || result?.coverLetter?._id || null;
-            const content = result?.content || (typeof result === "string" ? result : "");
-            renderCoverLetter(content);
-            showBanner("Cover letter generated!", "success");
-        } catch (error) {
-            console.error("CareerOS assistant cover letter error:", error);
-            if (error.status === 401 || error.status === 403) {
-                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-            } else {
-                showBanner(error.message || "Failed to generate cover letter.", "error");
+                    matchResumeBtn.disabled = false;
+                    genCoverBtn.disabled = false;
+                } catch (error) {
+                    console.error("CareerOS assistant resume fetch error:", error);
+                    if (error.status === 401 || error.status === 403) {
+                        showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                    }
+                    resumeSelect.innerHTML = "<option value=''>Failed to load resumes</option>";
+                    matchResumeBtn.disabled = true;
+                    genCoverBtn.disabled = true;
+                }
             }
-        } finally {
-            isGeneratingCL = false;
-            genCoverBtn.disabled = false;
-            genCoverBtn.textContent = "Cover Letter";
-        }
-    }
 
-    // Copy Cover Letter
-    function handleCopyCoverLetter() {
-        if (!coverLetterText.value) return;
-        navigator.clipboard.writeText(coverLetterText.value).then(() => {
-            copyClBtn.textContent = "Copied ✓";
-            setTimeout(() => {
-                copyClBtn.textContent = "Copy";
-            }, 2000);
-        });
-    }
+            // Save Job Handler
+            async function handleSaveJob() {
+                if (isSaving) return;
 
-    // Add Application Handler
-    async function handleAddApplication() {
-        if (isCreatingApp) return;
+                const jobPayload = {
+                    jobTitle: jobTitleInput.value.trim(),
+                    company: jobCompanyInput.value.trim(),
+                    location: jobLocationInput.value.trim(),
+                    description: jobDescInput.value.trim(),
+                    jobUrl: jobUrlInput.value.trim() || window.location.href,
+                };
 
-        const resumeId = resumeSelect.value;
-        if (!currentJobId || !resumeId) {
-            showBanner("Job and resume are required.", "warning");
-            return;
-        }
+                if (!jobPayload.jobTitle || !jobPayload.company || !jobPayload.jobUrl) {
+                    showBanner("Job title, company, and URL are required.", "warning");
+                    return;
+                }
 
-        isCreatingApp = true;
-        addAppBtn.disabled = true;
-        addAppBtn.textContent = "Saving...";
+                isSaving = true;
+                saveJobBtn.disabled = true;
+                saveJobBtn.textContent = "Saving...";
+                clearBanner();
 
-        try {
-            await callBackgroundApi("createApplication", {
-                jobId: currentJobId,
-                resumeId,
-                coverLetterId: currentCoverLetterId,
-            });
-            addAppBtn.textContent = "Saved ✓";
-            showBanner("Added to your CareerOS applications!", "success");
-        } catch (error) {
-            console.error("CareerOS assistant create application error:", error);
-            addAppBtn.disabled = false;
-            addAppBtn.textContent = "Add to Applications";
-            if (error.status === 401 || error.status === 403) {
-                showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
-            } else {
-                showBanner(error.message || "Failed to create application.", "error");
+                try {
+                    const response = await callBackgroundApi("saveJob", jobPayload);
+                    const saved = response?.data || response;
+                    if (saved?._id) {
+                        currentJobId = saved._id;
+                    }
+                    saveJobBtn.textContent = "Saved ✓";
+                    showBanner("Job saved successfully to CareerOS!", "success");
+                    loadResumes();
+                } catch (error) {
+                    console.error("CareerOS assistant save job error:", error);
+                    saveJobBtn.disabled = false;
+                    saveJobBtn.textContent = "Save Job";
+
+                    if (error.status === 401 || error.status === 403) {
+                        showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                    } else if (error.status === 409) {
+                        if (error.data?._id) {
+                            currentJobId = error.data._id;
+                        }
+                        showBanner("Job is already saved in CareerOS.", "info");
+                        saveJobBtn.textContent = "Saved ✓";
+                        loadResumes();
+                    } else {
+                        showBanner(error.message || "Failed to save job.", "error");
+                    }
+                } finally {
+                    isSaving = false;
+                }
             }
-        } finally {
-            isCreatingApp = false;
+
+            // Render Analysis
+            function renderAnalysis(analysis) {
+                analysisContent.innerHTML = "";
+                analysisCard.style.display = "flex";
+
+                if (!analysis || typeof analysis !== "object") {
+                    analysisContent.innerHTML = "<p>No analysis details returned.</p>";
+                    return;
+                }
+
+                if (analysis.summary?.trim()) {
+                    const sec = document.createElement("div");
+                    sec.className = "analysis-section";
+                    sec.innerHTML = `<h4>Summary</h4><p>${analysis.summary}</p>`;
+                    analysisContent.appendChild(sec);
+                }
+
+                const fields = [
+                    { key: "skills", label: "Skills" },
+                    { key: "requirements", label: "Requirements" },
+                    { key: "responsibilities", label: "Responsibilities" },
+                    { key: "technologies", label: "Technologies" },
+                    { key: "domains", label: "Domains" },
+                ];
+
+                fields.forEach(({ key, label }) => {
+                    const items = Array.isArray(analysis[key])
+                        ? analysis[key].filter((item) => item && String(item).trim())
+                        : [];
+
+                    if (!items.length) return;
+
+                    const sec = document.createElement("div");
+                    sec.className = "analysis-section";
+                    const ul = document.createElement("ul");
+                    items.forEach((item) => {
+                        const li = document.createElement("li");
+                        li.textContent = item;
+                        ul.appendChild(li);
+                    });
+                    sec.innerHTML = `<h4>${label}</h4>`;
+                    sec.appendChild(ul);
+                    analysisContent.appendChild(sec);
+                });
+            }
+
+            // Analyze Job Handler
+            async function handleAnalyzeJob() {
+                if (isAnalyzing) return;
+
+                // Ensure job is saved first
+                if (!currentJobId) {
+                    const jobPayload = {
+                        jobTitle: jobTitleInput.value.trim(),
+                        company: jobCompanyInput.value.trim(),
+                        location: jobLocationInput.value.trim(),
+                        description: jobDescInput.value.trim(),
+                        jobUrl: jobUrlInput.value.trim() || window.location.href,
+                    };
+
+                    if (!jobPayload.jobTitle || !jobPayload.company || !jobPayload.jobUrl) {
+                        showBanner("Please provide job title and company first.", "warning");
+                        return;
+                    }
+
+                    analyzeJobBtn.disabled = true;
+                    analyzeJobBtn.textContent = "Saving job first...";
+
+                    try {
+                        const saveRes = await callBackgroundApi("saveJob", jobPayload);
+                        const saved = saveRes?.data || saveRes;
+                        if (saved?._id) {
+                            currentJobId = saved._id;
+                            saveJobBtn.textContent = "Saved ✓";
+                        }
+                    } catch (saveErr) {
+                        analyzeJobBtn.disabled = false;
+                        analyzeJobBtn.textContent = "Analyze Job";
+                        if (saveErr.status === 401 || saveErr.status === 403) {
+                            showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                        } else if (saveErr.status === 409) {
+                            // Already saved, proceed with analysis if we can find job or notify
+                            showBanner("Job is already saved. Click Analyze Job again.", "info");
+                        } else {
+                            showBanner(saveErr.message || "Failed to save job before analysis.", "error");
+                        }
+                        return;
+                    }
+                }
+
+                if (!currentJobId) {
+                    showBanner("Please save the job first before analyzing.", "warning");
+                    analyzeJobBtn.disabled = false;
+                    analyzeJobBtn.textContent = "Analyze Job";
+                    return;
+                }
+
+                isAnalyzing = true;
+                analyzeJobBtn.disabled = true;
+                analyzeJobBtn.textContent = "Analyzing with AI...";
+                clearBanner();
+
+                try {
+                    const response = await callBackgroundApi("analyzeJob", { jobId: currentJobId });
+                    const analysis = response?.analysis || response?.data?.analysis || response;
+                    renderAnalysis(analysis);
+                    showBanner("Job analysis ready!", "success");
+                    loadResumes();
+                } catch (error) {
+                    console.error("CareerOS assistant analyze error:", error);
+                    if (error.status === 401 || error.status === 403) {
+                        showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                    } else {
+                        showBanner(error.message || "Failed to analyze job.", "error");
+                    }
+                } finally {
+                    isAnalyzing = false;
+                    analyzeJobBtn.disabled = false;
+                    analyzeJobBtn.textContent = "Analyze Job";
+                }
+            }
+
+            // Render Match Result
+            function renderMatchResult(match) {
+                matchResultBox.innerHTML = "";
+                matchResultBox.style.display = "block";
+                coverLetterBox.style.display = "none";
+
+                const score = match.matchScore ?? 0;
+                const scoreBadge = document.createElement("div");
+                scoreBadge.className = "match-score-badge";
+                scoreBadge.innerHTML = `<span>Match Score:</span> <span>${score}%</span>`;
+                matchResultBox.appendChild(scoreBadge);
+
+                if (Array.isArray(match.matchingSkills) && match.matchingSkills.length > 0) {
+                    const title = document.createElement("div");
+                    title.style.fontSize = "11px";
+                    title.style.fontWeight = "600";
+                    title.style.color = "#166534";
+                    title.textContent = "Matching Skills:";
+                    matchResultBox.appendChild(title);
+
+                    const tags = document.createElement("div");
+                    tags.className = "skills-tag-container";
+                    match.matchingSkills.forEach((s) => {
+                        const tag = document.createElement("span");
+                        tag.className = "skill-tag skill-matching";
+                        tag.textContent = s;
+                        tags.appendChild(tag);
+                    });
+                    matchResultBox.appendChild(tags);
+                }
+
+                if (Array.isArray(match.missingSkills) && match.missingSkills.length > 0) {
+                    const title = document.createElement("div");
+                    title.style.fontSize = "11px";
+                    title.style.fontWeight = "600";
+                    title.style.color = "#991b1b";
+                    title.textContent = "Missing Skills:";
+                    matchResultBox.appendChild(title);
+
+                    const tags = document.createElement("div");
+                    tags.className = "skills-tag-container";
+                    match.missingSkills.forEach((s) => {
+                        const tag = document.createElement("span");
+                        tag.className = "skill-tag skill-missing";
+                        tag.textContent = s;
+                        tags.appendChild(tag);
+                    });
+                    matchResultBox.appendChild(tags);
+                }
+            }
+
+            // Match Resume Handler
+            async function handleMatchResume() {
+                if (isMatching) return;
+
+                const resumeId = resumeSelect.value;
+                if (!resumeId) {
+                    showBanner("Please select a resume first.", "warning");
+                    return;
+                }
+
+                if (!currentJobId) {
+                    showBanner("Please save or analyze the job first.", "warning");
+                    return;
+                }
+
+                isMatching = true;
+                matchResumeBtn.disabled = true;
+                matchResumeBtn.textContent = "Matching...";
+                clearBanner();
+
+                try {
+                    const matchAnalysis = await callBackgroundApi("matchResume", {
+                        jobId: currentJobId,
+                        resumeId,
+                    });
+                    renderMatchResult(matchAnalysis);
+                    showBanner("Resume match analysis complete!", "success");
+                } catch (error) {
+                    console.error("CareerOS assistant match resume error:", error);
+                    if (error.status === 400) {
+                        showBanner("Please analyze the job first before matching.", "warning");
+                    } else if (error.status === 401 || error.status === 403) {
+                        showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                    } else {
+                        showBanner(error.message || "Failed to match resume.", "error");
+                    }
+                } finally {
+                    isMatching = false;
+                    matchResumeBtn.disabled = false;
+                    matchResumeBtn.textContent = "Match Resume";
+                }
+            }
+
+            // Render Cover Letter
+            function renderCoverLetter(content) {
+                matchResultBox.style.display = "none";
+                coverLetterBox.style.display = "block";
+                coverLetterText.value = content || "";
+            }
+
+            // Generate Cover Letter Handler
+            async function handleGenerateCoverLetter() {
+                if (isGeneratingCL) return;
+
+                const resumeId = resumeSelect.value;
+                if (!resumeId) {
+                    showBanner("Please select a resume first.", "warning");
+                    return;
+                }
+
+                if (!currentJobId) {
+                    showBanner("Please save or analyze the job first.", "warning");
+                    return;
+                }
+
+                isGeneratingCL = true;
+                genCoverBtn.disabled = true;
+                genCoverBtn.textContent = "Generating...";
+                clearBanner();
+
+                try {
+                    const result = await callBackgroundApi("generateCoverLetter", {
+                        jobId: currentJobId,
+                        resumeId,
+                    });
+                    currentCoverLetterId = result?._id || result?.coverLetter?._id || null;
+                    const content = result?.content || (typeof result === "string" ? result : "");
+                    renderCoverLetter(content);
+                    showBanner("Cover letter generated!", "success");
+                } catch (error) {
+                    console.error("CareerOS assistant cover letter error:", error);
+                    if (error.status === 401 || error.status === 403) {
+                        showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                    } else {
+                        showBanner(error.message || "Failed to generate cover letter.", "error");
+                    }
+                } finally {
+                    isGeneratingCL = false;
+                    genCoverBtn.disabled = false;
+                    genCoverBtn.textContent = "Cover Letter";
+                }
+            }
+
+            // Copy Cover Letter
+            function handleCopyCoverLetter() {
+                if (!coverLetterText.value) return;
+                navigator.clipboard.writeText(coverLetterText.value).then(() => {
+                    copyClBtn.textContent = "Copied ✓";
+                    setTimeout(() => {
+                        copyClBtn.textContent = "Copy";
+                    }, 2000);
+                });
+            }
+
+            // Add Application Handler
+            async function handleAddApplication() {
+                if (isCreatingApp) return;
+
+                const resumeId = resumeSelect.value;
+                if (!currentJobId || !resumeId) {
+                    showBanner("Job and resume are required.", "warning");
+                    return;
+                }
+
+                isCreatingApp = true;
+                addAppBtn.disabled = true;
+                addAppBtn.textContent = "Saving...";
+
+                try {
+                    await callBackgroundApi("createApplication", {
+                        jobId: currentJobId,
+                        resumeId,
+                        coverLetterId: currentCoverLetterId,
+                    });
+                    addAppBtn.textContent = "Saved ✓";
+                    showBanner("Added to your CareerOS applications!", "success");
+                } catch (error) {
+                    console.error("CareerOS assistant create application error:", error);
+                    addAppBtn.disabled = false;
+                    addAppBtn.textContent = "Add to Applications";
+                    if (error.status === 401 || error.status === 403) {
+                        showBanner("Your session has expired. Open the CareerOS extension popup and log in again.", "warning");
+                    } else {
+                        showBanner(error.message || "Failed to create application.", "error");
+                    }
+                } finally {
+                    isCreatingApp = false;
+                }
+            }
+
+            // =====================================================
+            // ASSISTED APPLY HANDLERS
+            // =====================================================
+
+            async function loadUserDataForAssistedApply() {
+                try {
+                    const [profileRes, resumeRes] = await Promise.allSettled([
+                        callBackgroundApi("getUserProfile"),
+                        callBackgroundApi("getDefaultResume")
+                    ]);
+
+                    const profile = profileRes.status === "fulfilled" ? profileRes.value : null;
+                    const resume = resumeRes.status === "fulfilled" ? resumeRes.value : null;
+
+                    const nameParts = (profile?.fullName || "").trim().split(/\s+/);
+                    const firstName = nameParts[0] || "";
+                    const lastName = nameParts.slice(1).join(" ") || "";
+
+                    const exp = resume?.experience?.[0] || {};
+                    const edu = resume?.education?.[0] || {};
+
+                    mappedUserData = {
+                        fullName: profile?.fullName || "",
+                        firstName,
+                        lastName,
+                        email: profile?.email || "",
+                        phone: resume?.phone || "",
+                        location: resume?.location || exp.location || "",
+                        linkedin: resume?.linkedin || "",
+                        github: resume?.github || "",
+                        portfolio: resume?.portfolio || "",
+                        currentCompany: exp.company || "",
+                        currentTitle: exp.role || "",
+                        summary: resume?.summary || "",
+                        skills: Array.isArray(resume?.skills) ? resume.skills.join(", ") : (resume?.skills || ""),
+                        education: edu.degree ? `${edu.degree}${edu.fieldOfStudy ? ' in ' + edu.fieldOfStudy : ''} - ${edu.institution || ''}` : ""
+                    };
+                    return mappedUserData;
+                } catch (err) {
+                    console.warn("Could not load user profile or resume for Assisted Apply:", err);
+                    return {};
+                }
+            }
+
+            async function runFormDetection() {
+                if (!window.__careerOSFormDetector) {
+                    console.warn("CareerOS form detector not initialized");
+                    return;
+                }
+
+                detectedFormBadge.textContent = "Scanning...";
+                const detection = window.__careerOSFormDetector.detectFormFields();
+                detectedFields = detection.fields || [];
+
+                await loadUserDataForAssistedApply();
+
+                if (detectedFields.length === 0) {
+                    detectedFormBadge.textContent = "No Form";
+                    detectedFormBadge.style.background = "#f1f5f9";
+                    detectedFormBadge.style.color = "#64748b";
+                    assistedApplyDetectedSection.style.display = "none";
+                    noFormDetectedMsg.style.display = "block";
+                    return;
+                }
+
+                detectedFormBadge.textContent = `${detectedFields.length} Fields`;
+                detectedFormBadge.style.background = "#dcfce7";
+                detectedFormBadge.style.color = "#166534";
+                noFormDetectedMsg.style.display = "none";
+                assistedApplyDetectedSection.style.display = "block";
+                fieldsCountBadge.textContent = `${detectedFields.length} found`;
+
+                renderFieldReviewList();
+            }
+
+            function renderFieldReviewList() {
+                fieldsReviewList.innerHTML = "";
+                detectedFields.forEach((field, index) => {
+                    const row = document.createElement("div");
+                    row.className = "field-review-row";
+
+                    const nameCol = document.createElement("div");
+                    nameCol.className = "field-name-label";
+                    nameCol.title = field.label || field.fieldType;
+                    nameCol.textContent = field.label || field.fieldType;
+
+                    const valCol = document.createElement("div");
+                    valCol.style.flex = "1";
+                    valCol.style.textAlign = "right";
+
+                    if (field.isSensitive) {
+                        valCol.innerHTML = `<span class="field-sensitive-tag">Manual input required</span>`;
+                    } else {
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.className = "field-val-input";
+                        const proposedVal = mappedUserData[field.fieldType] || field.currentValue || "";
+                        input.value = proposedVal;
+                        input.placeholder = field.label || "Value...";
+                        input.dataset.fieldIndex = index;
+                        input.addEventListener("input", (e) => {
+                            field.reviewedValue = e.target.value;
+                        });
+                        field.reviewedValue = proposedVal;
+                        valCol.appendChild(input);
+                    }
+
+                    row.appendChild(nameCol);
+                    row.appendChild(valCol);
+                    fieldsReviewList.appendChild(row);
+                });
+            }
+
+            async function handleAutofillForm() {
+                if (isAutofilling) return;
+                isAutofilling = true;
+                autofillBtn.disabled = true;
+                autofillBtn.textContent = "Autofilling...";
+
+                try {
+                    let filledCount = 0;
+                    let skippedCount = 0;
+                    let sensitiveCount = 0;
+
+                    for (const field of detectedFields) {
+                        if (field.isSensitive) {
+                            sensitiveCount++;
+                            continue;
+                        }
+
+                        const valueToFill = field.reviewedValue !== undefined ? field.reviewedValue : (mappedUserData[field.fieldType] || "");
+                        if (!valueToFill) {
+                            skippedCount++;
+                            continue;
+                        }
+
+                        const result = window.__careerOSFormDetector.fillField(field.element, valueToFill, false);
+                        if (result.filled) {
+                            filledCount++;
+                        } else if (result.skipped) {
+                            skippedCount++;
+                        }
+                    }
+
+                    autofillResultBanner.style.display = "block";
+                    autofillResultText.textContent = `✨ Filled ${filledCount} field(s). (${skippedCount} preserved/skipped, ${sensitiveCount} manual).`;
+                    showBanner(`Autofilled ${filledCount} field(s)! Please review before submitting.`, "success");
+                } catch (err) {
+                    console.error("Autofill error:", err);
+                    showBanner("Error filling form fields: " + err.message, "error");
+                } finally {
+                    isAutofilling = false;
+                    autofillBtn.disabled = false;
+                    autofillBtn.textContent = "✨ Autofill Form";
+                }
+            }
+
+            async function handleConfirmApplied() {
+                if (isConfirmingApp) return;
+
+                if (!currentJobId) {
+                    showBanner("Saving job details before recording application...", "info");
+                    try {
+                        const savePayload = {
+                            title: jobTitleInput.value.trim() || currentJob.jobTitle || "Job Application",
+                            company: jobCompanyInput.value.trim() || currentJob.company || "Company",
+                            location: jobLocationInput.value.trim() || currentJob.location || "",
+                            jobUrl: jobUrlInput.value.trim() || window.location.href,
+                            description: jobDescInput.value.trim() || currentJob.description || ""
+                        };
+                        const saved = await callBackgroundApi("saveJob", savePayload);
+                        currentJobId = saved?._id || saved?.job?._id;
+                    } catch (err) {
+                        console.error("Could not auto-save job before confirming application:", err);
+                        showBanner("Could not save job: " + err.message, "error");
+                        return;
+                    }
+                }
+
+                isConfirmingApp = true;
+                confirmAppliedBtn.disabled = true;
+                confirmAppliedBtn.textContent = "Recording...";
+
+                try {
+                    const defaultResume = await callBackgroundApi("getDefaultResume").catch(() => null);
+                    await callBackgroundApi("createApplication", {
+                        jobId: currentJobId,
+                        resumeId: defaultResume?._id || undefined,
+                        status: "applied",
+                        notes: "Applied via CareerOS Assisted Apply",
+                        source: "extension-assisted"
+                    });
+
+                    await callBackgroundApi("clearActiveAssistedApply");
+                    confirmAppliedBtn.textContent = "Applied ✓";
+                    confirmAppliedBtn.style.background = "#10b981";
+                    appTrackingStatus.textContent = "Applied (Recorded in CareerOS)";
+                    appTrackingStatus.style.color = "#10b981";
+                    appTrackingStatus.style.fontWeight = "600";
+                    showBanner("Application confirmed and tracked in CareerOS!", "success");
+                } catch (err) {
+                    console.error("Confirm application error:", err);
+                    confirmAppliedBtn.disabled = false;
+                    confirmAppliedBtn.textContent = "✓ Confirm Applied & Track";
+                    showBanner(err.message || "Failed to record application.", "error");
+                } finally {
+                    isConfirmingApp = false;
+                }
+            }
+
+            async function checkAssistedApplySession() {
+                try {
+                    const activeSession = await callBackgroundApi("getActiveAssistedApply");
+                    if (activeSession && activeSession.jobId) {
+                        const isRecent = (Date.now() - (activeSession.timestamp || 0)) < 30 * 60 * 1000;
+                        if (isRecent) {
+                            currentJobId = activeSession.jobId;
+                            if (activeSession.company) jobCompanyInput.value = activeSession.company;
+                            if (activeSession.jobTitle) jobTitleInput.value = activeSession.jobTitle;
+                            if (activeSession.jobUrl) jobUrlInput.value = activeSession.jobUrl;
+
+                            toggleDrawer(true);
+                            showBanner(`⚡ Assisted Apply active for ${activeSession.company || "job"}!`, "info");
+
+                            setTimeout(() => {
+                                runFormDetection();
+                            }, 500);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Could not check active assisted apply session:", e);
+                }
+
+                setTimeout(() => {
+                    if (window.__careerOSFormDetector) {
+                        const check = window.__careerOSFormDetector.detectFormFields();
+                        if (check && check.fields && check.fields.length > 0) {
+                            runFormDetection();
+                        }
+                    }
+                }, 1000);
+            }
+
+            // Event listeners
+            launcherBtn.addEventListener("click", () => toggleDrawer());
+            closeBtn.addEventListener("click", () => toggleDrawer(false));
+            reextractBtn.addEventListener("click", handleReextract);
+            saveJobBtn.addEventListener("click", handleSaveJob);
+            analyzeJobBtn.addEventListener("click", handleAnalyzeJob);
+            matchResumeBtn.addEventListener("click", handleMatchResume);
+            genCoverBtn.addEventListener("click", handleGenerateCoverLetter);
+            copyClBtn.addEventListener("click", handleCopyCoverLetter);
+            addAppBtn.addEventListener("click", handleAddApplication);
+
+            // Assisted Apply event listeners
+            autofillBtn?.addEventListener("click", handleAutofillForm);
+            redetectBtn?.addEventListener("click", runFormDetection);
+            manualDetectBtn?.addEventListener("click", runFormDetection);
+            confirmAppliedBtn?.addEventListener("click", handleConfirmApplied);
+
+            // Initial populate
+            populateJobForm(currentJob);
+
+            // Check for website-initiated Assisted Apply
+            checkAssistedApplySession();
         }
+
+        // Ensure assistant initializes after DOM is ready
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initCareerOSAssistant, { once: true });
+        } else {
+            initCareerOSAssistant();
+        }
+
     }
-
-    // Event listeners
-    launcherBtn.addEventListener("click", () => toggleDrawer());
-    closeBtn.addEventListener("click", () => toggleDrawer(false));
-    reextractBtn.addEventListener("click", handleReextract);
-    saveJobBtn.addEventListener("click", handleSaveJob);
-    analyzeJobBtn.addEventListener("click", handleAnalyzeJob);
-    matchResumeBtn.addEventListener("click", handleMatchResume);
-    genCoverBtn.addEventListener("click", handleGenerateCoverLetter);
-    copyClBtn.addEventListener("click", handleCopyCoverLetter);
-    addAppBtn.addEventListener("click", handleAddApplication);
-
-    // Initial populate
-    populateJobForm(currentJob);
-}
-
-// Ensure assistant initializes after DOM is ready
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initCareerOSAssistant, { once: true });
-} else {
-    initCareerOSAssistant();
-}
-
-} // End of globalThis.__careerOSContentScriptLoaded
+// End of globalThis.__careerOSContentScriptLoaded

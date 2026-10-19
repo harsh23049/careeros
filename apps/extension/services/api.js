@@ -325,7 +325,66 @@ const generateCoverLetter = async (jobId, resumeId) => {
   return responseBody.data?.coverLetter || responseBody.coverLetter || responseBody;
 };
 
-const createApplication = async (jobId, resumeId, coverLetterId) => {
+const getJob = async (jobId) => {
+  if (!jobId?.trim()) {
+    throw createApiError(400, "Job ID is required.");
+  }
+
+  const { response, responseBody } = await authenticatedFetch(
+    `${API_BASE_URL}/jobs/${encodeURIComponent(jobId.trim())}`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (!response.ok) {
+    throw createApiError(
+      response.status,
+      responseBody.message || "CareerOS could not fetch job."
+    );
+  }
+
+  return responseBody.data || responseBody;
+};
+
+const getDefaultResume = async () => {
+  try {
+    const { response, responseBody } = await authenticatedFetch(
+      `${API_BASE_URL}/resumes/default`,
+      {
+        method: "GET",
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return responseBody.data || responseBody;
+  } catch (err) {
+    console.warn("No default resume found or error fetching default resume:", err?.message);
+    return null;
+  }
+};
+
+const createApplication = async (
+  jobId,
+  resumeId,
+  coverLetterId,
+  status = "saved",
+  notes = undefined,
+  source = "extension-assisted"
+) => {
+  const payload = {
+    job: jobId,
+    status: status || "saved",
+    source: source || "extension-assisted",
+  };
+
+  if (resumeId) payload.resume = resumeId;
+  if (coverLetterId) payload.coverLetter = coverLetterId;
+  if (notes) payload.notes = notes;
+
   const { response, responseBody } = await authenticatedFetch(
     `${API_BASE_URL}/applications`,
     {
@@ -333,12 +392,7 @@ const createApplication = async (jobId, resumeId, coverLetterId) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        job: jobId,
-        resume: resumeId,
-        coverLetter: coverLetterId,
-        status: "saved",
-      }),
+      body: JSON.stringify(payload),
     }
   );
 
@@ -442,8 +496,10 @@ const logout = async () => {
 
 export {
   saveJob,
+  getJob,
   analyzeJob,
   getResumes,
+  getDefaultResume,
   matchResume,
   generateCoverLetter,
   createApplication,

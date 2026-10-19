@@ -6,6 +6,7 @@ import { useAuth } from '../features/auth';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import AssistApplyModal from '../components/jobs/AssistApplyModal';
 
 function formatJobDate(dateString) {
   if (!dateString) return 'Recently';
@@ -31,6 +32,7 @@ export function Jobs() {
     description: '',
   });
   const [modalError, setModalError] = useState('');
+  const [assistApplyJob, setAssistApplyJob] = useState(null);
 
   // Fetch jobs saved in CareerOS database for authenticated user
   const {
@@ -264,7 +266,16 @@ export function Jobs() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setAssistApplyJob(job)}
+                  className="flex items-center gap-1 font-semibold text-xs"
+                  title="Launch Assisted Apply with CareerOS Chrome Extension"
+                >
+                  <span>⚡ Assist Apply</span>
+                </Button>
                 {job.jobUrl && (
                   <a
                     href={job.jobUrl}
@@ -405,6 +416,13 @@ export function Jobs() {
           </div>
         </div>
       )}
+
+      {/* Assisted Apply Handoff Modal */}
+      <AssistApplyModal
+        job={assistApplyJob}
+        isOpen={Boolean(assistApplyJob)}
+        onClose={() => setAssistApplyJob(null)}
+      />
     </div>
   );
 }

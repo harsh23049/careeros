@@ -608,6 +608,12 @@ export function Applications() {
 
                   {/* Notes / Resume / Cover Letter tags */}
                   <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                    {app.source === 'extension-assisted' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                        <span>⚡</span>
+                        <span>Assisted Apply</span>
+                      </span>
+                    )}
                     {app.resume?.title && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-700 dark:text-slate-300">
                         <span>📄</span>
@@ -764,6 +770,15 @@ export function Applications() {
                           <p className="text-xs text-slate-500 truncate">
                             {app.job?.company || 'Company Unspecified'}
                           </p>
+
+                          {app.source === 'extension-assisted' && (
+                            <div className="pt-0.5">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">
+                                <span>⚡</span>
+                                <span>Assisted</span>
+                              </span>
+                            </div>
+                          )}
 
                           <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 text-[11px] text-slate-400">
                             <span>{formatDisplayDate(app.appliedAt || app.createdAt)}</span>
