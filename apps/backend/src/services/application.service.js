@@ -37,20 +37,22 @@ const createApplication = async (
     }
 
     // -------------------------------------------------
-    // 2. Verify resume belongs to current user
+    // 2. Verify resume if provided
     // -------------------------------------------------
 
-    const existingResume =
-        await resumeRepository.findByIdAndUser(
-            resume,
-            userId
-        );
+    if (resume) {
+        const existingResume =
+            await resumeRepository.findByIdAndUser(
+                resume,
+                userId
+            );
 
-    if (!existingResume) {
-        throw new ApiError(
-            404,
-            "Resume not found"
-        );
+        if (!existingResume) {
+            throw new ApiError(
+                404,
+                "Resume not found"
+            );
+        }
     }
 
     // -------------------------------------------------
