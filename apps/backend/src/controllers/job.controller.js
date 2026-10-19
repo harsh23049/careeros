@@ -35,10 +35,11 @@ const getJobs = asyncHandler(async (req, res) => {
         );
 });
 
-// Get a single job
+// Get a single job for authenticated user
 const getJob = asyncHandler(async (req, res) => {
     const job = await jobService.getJob(
-        req.params.id
+        req.params.id,
+        req.user._id
     );
 
     return res
@@ -52,10 +53,11 @@ const getJob = asyncHandler(async (req, res) => {
         );
 });
 
-// Update a job
+// Update a job for authenticated user
 const updateJob = asyncHandler(async (req, res) => {
     const job = await jobService.updateJob(
         req.params.id,
+        req.user._id,
         req.body
     );
 
@@ -70,10 +72,11 @@ const updateJob = asyncHandler(async (req, res) => {
         );
 });
 
-// Delete a job
+// Delete a job for authenticated user
 const deleteJob = asyncHandler(async (req, res) => {
     await jobService.deleteJob(
-        req.params.id
+        req.params.id,
+        req.user._id
     );
 
     return res
