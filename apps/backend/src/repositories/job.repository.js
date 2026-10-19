@@ -28,16 +28,20 @@ class JobRepository {
         return await Job.findById(jobId);
     }
 
-    // Find a job by exact URL
-    async findByUrl(jobUrl) {
-        if (!jobUrl) return null;
-        return await Job.findOne({ jobUrl: jobUrl.trim() });
+    // Find a job by exact URL belonging to a specific user (scoped duplicate check)
+    async findByUrlAndUser(jobUrl, userId) {
+        if (!jobUrl || !userId) return null;
+        return await Job.findOne({
+            jobUrl: jobUrl.trim(),
+            user: userId,
+        });
     }
 
-    // Find a job by company and title (case-insensitive)
-    async findByCompanyAndTitle(company, jobTitle) {
-        if (!company || !jobTitle) return null;
+    // Find a job by company and title belonging to a specific user (scoped duplicate check)
+    async findByCompanyAndTitleAndUser(company, jobTitle, userId) {
+        if (!company || !jobTitle || !userId) return null;
         return await Job.findOne({
+            user: userId,
             company: { $regex: new RegExp(`^${company.trim()}$`, "i") },
             jobTitle: { $regex: new RegExp(`^${jobTitle.trim()}$`, "i") },
         });
