@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import jobService from '../services/jobService';
+import { useAuth } from '../features/auth';
 import Card, { CardHeader, CardTitle } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -18,6 +19,7 @@ function formatJobDate(dateString) {
 
 export function JobDetails() {
   const { id } = useParams();
+  const { user } = useAuth();
 
   const {
     data: responseData,
@@ -26,9 +28,9 @@ export function JobDetails() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['job', id],
+    queryKey: ['job', id, user?._id],
     queryFn: () => jobService.getJobById(id),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && Boolean(user?._id),
   });
 
   const job = responseData?.data || responseData;
