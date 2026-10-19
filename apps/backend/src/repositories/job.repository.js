@@ -6,10 +6,20 @@ class JobRepository {
         return await Job.create(jobData);
     }
 
-    // Find all jobs
-    async findAll() {
-        return await Job.find().sort({
+    // Find all saved jobs belonging to a specific user
+    async findByUser(userId) {
+        return await Job.find({
+            user: userId,
+        }).sort({
             createdAt: -1,
+        });
+    }
+
+    // Find a single saved job belonging to a specific user
+    async findByIdAndUser(jobId, userId) {
+        return await Job.findOne({
+            _id: jobId,
+            user: userId,
         });
     }
 
