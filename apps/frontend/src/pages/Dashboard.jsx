@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import jobService from '../services/jobService';
 import applicationService from '../services/applicationService';
 import { useAuth } from '../features/auth';
 import Card, { CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -23,28 +24,50 @@ export function Dashboard() {
   const { user } = useAuth();
   const firstName = user?.fullName ? user.fullName.trim().split(' ')[0] : null;
 
+  // 1. Fetch saved jobs from verified GET /api/v1/jobs endpoint scoped to authenticated user
   const {
-    data: responseData,
-    isLoading,
-    isError,
-    error,
-    refetch,
+    data: jobsResponse,
+    isLoading: isJobsLoading,
+    isError: isJobsError,
+    error: jobsError,
+    refetch: refetchJobs,
   } = useQuery({
-    queryKey: ['applications'],
-    queryFn: () => applicationService.getApplications(),
+    queryKey: ['jobs', user?._id],
+    queryFn: () => jobService.getJobs(),
+    enabled: Boolean(user?._id),
   });
+
+  // 2. Fetch application pipeline from verified GET /api/v1/applications endpoint scoped to authenticated user
+  const {
+    data: appsResponse,
+    isLoading: isAppsLoading,
+    isError: isAppsError,
+    error: appsError,
+    refetch: refetchApps,
+  } = useQuery({
+    queryKey: ['applications', user?._id],
+    queryFn: () => applicationService.getApplications(),
+    enabled: Boolean(user?._id),
+  });
+
+  // Extract jobs array safely
+  const jobs = useMemo(() => {
+    if (!jobsResponse) return [];
+    if (Array.isArray(jobsResponse.data)) return jobsResponse.data;
+    if (Array.isArray(jobsResponse)) return jobsResponse;
+    return [];
+  }, [jobsResponse]);
 
   // Extract applications array safely from API response wrapper
   const applications = useMemo(() => {
-    if (!responseData) return [];
-    if (Array.isArray(responseData.data)) return responseData.data;
-    if (Array.isArray(responseData)) return responseData;
+    if (!appsResponse) return [];
+    if (Array.isArray(appsResponse.data)) return appsResponse.data;
+    if (Array.isArray(appsResponse)) return appsResponse;
     return [];
-  }, [responseData]);
+  }, [appsResponse]);
 
-  // Derived metrics from verified backend application data
+  // Derived metrics from verified backend jobs and application data
   const metrics = useMemo(() => {
-    const savedJobs = applications.filter((app) => app.status?.toLowerCase() === 'saved');
     const interviews = applications.filter((app) => app.status?.toLowerCase() === 'interview');
     const offers = applications.filter((app) =>
       ['offer', 'accepted'].includes(app.status?.toLowerCase())
@@ -54,13 +77,13 @@ export function Dashboard() {
     );
 
     return {
-      savedCount: savedJobs.length,
+      savedCount: jobs.length,
       totalCount: applications.length,
       interviewCount: interviews.length,
       offerCount: offers.length,
       inProgressCount: inProgress.length,
     };
-  }, [applications]);
+  }, [jobs, applications]);
 
   // Recent applications subset ordered by creation / update
   const recentApplications = useMemo(() => {
@@ -68,6 +91,12 @@ export function Dashboard() {
       .sort((a, b) => new Date(b.createdAt || b.appliedAt || 0) - new Date(a.createdAt || a.appliedAt || 0))
       .slice(0, 5);
   }, [applications]);
+
+  const hasAnyError = isJobsError || isAppsError;
+  const handleRetryAll = () => {
+    if (isJobsError) refetchJobs();
+    if (isAppsError) refetchApps();
+  };
 
   return (
     <div className="space-y-6">
@@ -99,7 +128,7 @@ export function Dashboard() {
       </div>
 
       {/* API Error Notification */}
-      {isError && (
+      {hasAnyError && (
         <div
           role="alert"
           className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -107,10 +136,15 @@ export function Dashboard() {
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>
-              Unable to load your live pipeline metrics: {error?.response?.data?.message || error?.message || 'Network error'}
+              Unable to load live pipeline data:{' '}
+              {jobsError?.response?.data?.message ||
+                appsError?.response?.data?.message ||
+                jobsError?.message ||
+                appsError?.message ||
+                'Network connection error'}
             </span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="shrink-0">
+          <Button variant="outline" size="sm" onClick={handleRetryAll} className="shrink-0">
             Retry Connection
           </Button>
         </div>
@@ -118,17 +152,19 @@ export function Dashboard() {
 
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* 1. Saved Jobs */}
+        {/* 1. Saved Jobs: Driven by GET /api/v1/jobs (same as /jobs page) */}
         <StatCard
           title="Saved Jobs"
-          value={metrics.savedCount}
+          value={isJobsError ? '—' : metrics.savedCount}
           subtitle={
-            metrics.savedCount === 1
-              ? '1 job bookmarked'
-              : `${metrics.savedCount} jobs bookmarked`
+            isJobsError
+              ? 'Failed to load'
+              : metrics.savedCount === 1
+              ? '1 job saved'
+              : `${metrics.savedCount} jobs saved`
           }
-          to="/applications"
-          isLoading={isLoading}
+          to="/jobs"
+          isLoading={isJobsLoading}
           icon={
             <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -136,17 +172,19 @@ export function Dashboard() {
           }
         />
 
-        {/* 2. Total Applications */}
+        {/* 2. Total Applications: Driven by GET /api/v1/applications */}
         <StatCard
           title="Applications"
-          value={metrics.totalCount}
+          value={isAppsError ? '—' : metrics.totalCount}
           subtitle={
-            metrics.inProgressCount > 0
+            isAppsError
+              ? 'Failed to load'
+              : metrics.inProgressCount > 0
               ? `${metrics.inProgressCount} in progress`
               : 'Total in pipeline'
           }
           to="/applications"
-          isLoading={isLoading}
+          isLoading={isAppsLoading}
           icon={
             <svg className="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -154,17 +192,19 @@ export function Dashboard() {
           }
         />
 
-        {/* 3. Interviews */}
+        {/* 3. Interviews: Driven by GET /api/v1/applications */}
         <StatCard
           title="Interviews"
-          value={metrics.interviewCount}
+          value={isAppsError ? '—' : metrics.interviewCount}
           subtitle={
-            metrics.interviewCount > 0
+            isAppsError
+              ? 'Failed to load'
+              : metrics.interviewCount > 0
               ? `${metrics.interviewCount} scheduled`
               : 'None scheduled'
           }
           to="/applications"
-          isLoading={isLoading}
+          isLoading={isAppsLoading}
           icon={
             <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -172,17 +212,19 @@ export function Dashboard() {
           }
         />
 
-        {/* 4. Offers */}
+        {/* 4. Offers: Driven by GET /api/v1/applications */}
         <StatCard
           title="Offers"
-          value={metrics.offerCount}
+          value={isAppsError ? '—' : metrics.offerCount}
           subtitle={
-            metrics.offerCount > 0
+            isAppsError
+              ? 'Failed to load'
+              : metrics.offerCount > 0
               ? `${metrics.offerCount} received`
               : 'No active offers'
           }
           to="/applications"
-          isLoading={isLoading}
+          isLoading={isAppsLoading}
           icon={
             <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -205,7 +247,7 @@ export function Dashboard() {
           </CardHeader>
 
           {/* Loading Skeleton */}
-          {isLoading && (
+          {isAppsLoading && (
             <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-3">
               {[1, 2, 3].map((skeletonId) => (
                 <div key={skeletonId} className="py-3.5 flex items-center justify-between">
@@ -223,7 +265,7 @@ export function Dashboard() {
           )}
 
           {/* Empty State */}
-          {!isLoading && !isError && recentApplications.length === 0 && (
+          {!isAppsLoading && !isAppsError && recentApplications.length === 0 && (
             <div className="py-10 text-center space-y-3">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,7 +291,7 @@ export function Dashboard() {
           )}
 
           {/* List of Applications */}
-          {!isLoading && !isError && recentApplications.length > 0 && (
+          {!isAppsLoading && !isAppsError && recentApplications.length > 0 && (
             <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-3">
               {recentApplications.map((item) => {
                 const role = item.job?.jobTitle || item.jobTitle || 'Untitled Position';
