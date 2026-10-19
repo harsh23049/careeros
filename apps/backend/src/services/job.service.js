@@ -67,11 +67,16 @@ const getJob = async (jobId, userId) => {
     return job;
 };
 
-// Update a job
+// Update a job for authenticated user
 const updateJob = async (
     jobId,
+    userId,
     updateData
 ) => {
+    if (!userId) {
+        throw new ApiError(401, "Authentication required to update job");
+    }
+
     const allowedFields = [
         "company",
         "jobTitle",
@@ -98,8 +103,9 @@ const updateJob = async (
         }
     }
 
-    const job = await jobRepository.update(
+    const job = await jobRepository.updateByIdAndUser(
         jobId,
+        userId,
         updates
     );
 
@@ -113,10 +119,15 @@ const updateJob = async (
     return job;
 };
 
-// Delete a job
-const deleteJob = async (jobId) => {
-    const job = await jobRepository.deleteById(
-        jobId
+// Delete a job for authenticated user
+const deleteJob = async (jobId, userId) => {
+    if (!userId) {
+        throw new ApiError(401, "Authentication required to delete job");
+    }
+
+    const job = await jobRepository.deleteByIdAndUser(
+        jobId,
+        userId
     );
 
     if (!job) {
