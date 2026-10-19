@@ -23,11 +23,11 @@ const createApplication = async (
     } = applicationData;
 
     // -------------------------------------------------
-    // 1. Verify job exists
+    // 1. Verify job exists and belongs to current user
     // -------------------------------------------------
 
     const existingJob =
-        await jobRepository.findById(job);
+        await jobRepository.findByIdAndUser(job, userId);
 
     if (!existingJob) {
         throw new ApiError(
@@ -249,6 +249,13 @@ const updateApplication = async (
     for (const field of allowedFields) {
         if (updateData[field] !== undefined) {
             updates[field] = updateData[field];
+        }
+    }
+
+    if (updates.job) {
+        const existingJob = await jobRepository.findByIdAndUser(updates.job, userId);
+        if (!existingJob) {
+            throw new ApiError(404, "Job not found");
         }
     }
 
