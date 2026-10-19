@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { AuthContext } from './context';
 import authService from '../../services/authService';
 import { setAccessToken, setOnAuthFailure } from '../../services/apiClient';
+import { queryClient } from '../../app/queryClient';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Clear session locally
+  // Clear session locally and purge cached user data
   const handleClearSession = useCallback(() => {
+    queryClient.clear();
     setAccessToken(null);
     setUser(null);
   }, []);
@@ -57,6 +59,7 @@ export function AuthProvider({ children }) {
   }, [handleClearSession]);
 
   const login = async (email, password) => {
+    queryClient.clear();
     const response = await authService.login({ email, password });
     const authData = response.data;
 
