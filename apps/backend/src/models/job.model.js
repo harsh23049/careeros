@@ -5,9 +5,18 @@ const jobSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: [true, "User ownership is required for saved jobs"],
+            required: function () {
+                return !this.isLegacyUnowned;
+            },
             index: true,
         },
+
+        isLegacyUnowned: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+
         company: {
             type: String,
             required: [true, "Company name is required"],
