@@ -103,7 +103,6 @@ export function Applications() {
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
 
   // Modals state
-  // Modal controls
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [newAppForm, setNewAppForm] = useState({
     jobId: '',
