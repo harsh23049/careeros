@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import jobService from '../services/jobService';
+import { useAuth } from '../features/auth';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -18,6 +19,7 @@ function formatJobDate(dateString) {
 }
 
 export function Jobs() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -30,7 +32,7 @@ export function Jobs() {
   });
   const [modalError, setModalError] = useState('');
 
-  // Fetch jobs saved in CareerOS database
+  // Fetch jobs saved in CareerOS database for authenticated user
   const {
     data: responseData,
     isLoading,
@@ -39,8 +41,9 @@ export function Jobs() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ['jobs'],
+    queryKey: ['jobs', user?._id],
     queryFn: () => jobService.getJobs(),
+    enabled: Boolean(user?._id),
   });
 
   // Extract jobs array safely
