@@ -2,9 +2,10 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import * as jobService from "../services/job.service.js";
 
-// Create a new job
+// Create a new job for authenticated user
 const createJob = asyncHandler(async (req, res) => {
     const job = await jobService.createJob(
+        req.user._id,
         req.body
     );
 
@@ -19,9 +20,9 @@ const createJob = asyncHandler(async (req, res) => {
         );
 });
 
-// Get all jobs
+// Get all jobs for authenticated user
 const getJobs = asyncHandler(async (req, res) => {
-    const jobs = await jobService.getJobs();
+    const jobs = await jobService.getJobs(req.user._id);
 
     return res
         .status(200)
